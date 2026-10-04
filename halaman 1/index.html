@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Muhammad Zaini's professional video editing and graphic design portfolio.">
+  <title>Porto Studio | Video & Design</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#beranda" aria-label="Porto Studio">
+      <img src="logo.png" alt="Porto Studio">
+    </a>
+
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="active" href="#beranda">Home</a>
+      <a href="#video">Video</a>
+      <a href="#design">Design</a>
+      <a href="#tentang">About</a>
+      <a href="#kontak">Contact</a>
+    </nav>
+
+    <a class="topbar-cta" href="#design">View Work</a>
+  </header>
+
+  <main class="site-shell">
+    <section class="hero" id="beranda" aria-label="Featured video">
+      <video class="hero-video" muted playsinline preload="metadata"></video>
+      <div class="hero-shade"></div>
+      <img class="hero-portrait" src="foto%20zz.png" alt="Muhammad Zaini" fetchpriority="high">
+
+      <div class="hero-content">
+        <p class="eyebrow">PORTFOLIO</p>
+        <h1 class="hero-title">PORTFOLIO</h1>
+        <p class="hero-role">VIDEO EDITOR &amp; GRAPHIC DESIGNER</p>
+        <p class="hero-name">Muhammad Zaini</p>
+
+        <div class="intro-box">
+          <p class="intro-kicker">About Me</p>
+          <p class="intro-text">I'm a video editor and graphic designer focused on striking visuals, video effects and color grading, storytelling, branding, and digital content that communicates clearly. In addition to video, I design posters, flyers, and other promotional materials. I help businesses, brands, and individuals turn their ideas into polished visuals, ready for promotion, social media, and other professional needs.</p>
+        </div>
+
+        <p class="hero-project">Featured work</p>
+        <p class="hero-description">A collection of visual work combining storytelling, motion, and impactful visual communication.</p>
+
+        <div class="hero-actions">
+          <button class="watch-button" type="button"><span aria-hidden="true">▶</span> Play Now</button>
+          <button class="sound-button" type="button" aria-label="Turn sound on">🔇</button>
+        </div>
+
+        <ul class="quick-stats" aria-label="Portfolio statistics">
+          <li>
+            <strong>5+</strong>
+            <span>Years</span>
+          </li>
+          <li>
+            <strong>30+</strong>
+            <span>Projects</span>
+          </li>
+          <li>
+            <strong>100%</strong>
+            <span>Attention to detail</span>
+          </li>
+        </ul>
+      </div>
+
+      <aside class="hero-panel" aria-label="Project highlight">
+        <p class="panel-label">Project highlight</p>
+        <div class="panel-card">
+          <span class="chip">Now Playing</span>
+          <h2 id="hero-panel-title">Shot Videos A</h2>
+          <p id="hero-panel-copy">A collection of moving images with sharp composition and a dynamic visual rhythm.</p>
+        </div>
+      </aside>
+
+      <div class="hero-status"><span class="status-dot"></span><span class="status-text">Ready to play in 5 seconds</span></div>
+    </section>
+
+    <section class="collection" id="video">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">PORTO STUDIO</p>
+          <h2>Video Work</h2>
+        </div>
+        <p class="section-note">Scroll to explore more visual stories</p>
+      </div>
+
+      <div class="carousel-wrap">
+        <button class="carousel-button previous" type="button" aria-label="Previous video">←</button>
+        <div class="carousel" tabindex="0" aria-label="Video gallery"></div>
+        <button class="carousel-button next" type="button" aria-label="Next video">→</button>
+      </div>
+    </section>
+
+    <section class="design-section" id="design">
+      <div class="design-intro">
+        <h2>From information to insight — <span>effortlessly</span></h2>
+        <button type="button" class="section-link" data-scroll="#beranda">See how it works <span aria-hidden="true">↗</span></button>
+      </div>
+
+      <div class="design-header">
+        <div>
+          <p class="eyebrow">GRAPHIC DESIGN</p>
+          <h2>Portfolio Design</h2>
+        </div>
+        <button type="button" class="section-link secondary" data-scroll="#beranda">Back to Home</button>
+      </div>
+
+      <div class="design-grid" id="design-grid" aria-live="polite"></div>
+    </section>
+
+    <div class="design-lightbox" id="design-lightbox" aria-hidden="true">
+      <div class="lightbox-panel" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+        <button type="button" class="lightbox-close" aria-label="Close preview">×</button>
+        <img id="lightbox-image" src="" alt="Design preview">
+        <div class="lightbox-footer">
+          <div>
+            <p class="lightbox-label">Selected work</p>
+            <h3 id="lightbox-title">Design preview</h3>
+          </div>
+          <button type="button" class="lightbox-back" data-scroll="#beranda">Back to Home</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="about" id="tentang">
+      <p class="eyebrow">PORTO STUDIO</p>
+      <h2>Turning ideas into memorable visuals.</h2>
+      <p>This portfolio brings together video editing and visual design in one consistent, modern, and professional space.</p>
+
+      <div class="services-wrap">
+        <div class="service-card">
+          <span class="service-tag">01</span>
+          <h3>Video Editing</h3>
+          <p>Creating polished promotional videos, reels, tributes, documentaries, cinematic edits, and digital content that brings each message to life.</p>
+        </div>
+
+        <div class="service-card">
+          <span class="service-tag">02</span>
+          <h3>Graphic Design</h3>
+          <p>Designing professional, eye-catching flyers, posters, covers, social media graphics, visual identities, and promotional materials.</p>
+        </div>
+
+        <div class="service-card">
+          <span class="service-tag">03</span>
+          <h3>Content Production</h3>
+          <p>Supporting campaigns, branding, and visual marketing with strategic, clear concepts ready for publication.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact-section" id="kontak" aria-labelledby="contact-title">
+      <div class="contact-copy">
+        <p class="eyebrow">LET'S COLLABORATE</p>
+        <h2 id="contact-title">Let's work together.</h2>
+        <p>Get in touch about video, design, or visual content projects.</p>
+      </div>
+      <div class="contact-links">
+        <a class="contact-link" href="https://www.instagram.com/zaini.888_/" target="_blank" rel="noreferrer">
+          <small>Instagram</small>
+          <span>@zaini.888_</span>
+        </a>
+        <a class="contact-link" href="mailto:mmuhammadzaini0077@gmail.com">
+          <small>Email</small>
+          <span>mmuhammadzaini0077@gmail.com</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Portfolio graphic design Muhammad Zaini.">
+  <title>Graphic Design | Muhammad Zaini</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="index.html" aria-label="Muhammad Zaini Portfolio">
+        <img src="logo.png" alt="Muhammad Zaini">
+      </a>
+      <nav aria-label="Navigasi portfolio">
+        <a href="../halaman 1/index.html">Video</a>
+        <a class="active" href="index.html">Graphic Design</a>
+      </nav>
+      <span class="edition">02 / 05</span>
+    </header>
+
+    <section class="intro" aria-labelledby="page-title">
+      <p class="kicker">PORTFOLIO / VISUAL COMMUNICATION</p>
+      <h1 id="page-title">Graphic<br><em>Design</em></h1>
+      <div class="intro-bottom">
+        <p>Eksplorasi visual untuk poster, promosi, dan kampanye yang berani. Pilih kategori untuk melihat koleksi karya.</p>
+        <span class="count"><strong>31</strong> karya terpilih</span>
+      </div>
+    </section>
+
+    <section class="gallery-section" aria-labelledby="gallery-title">
+      <div class="section-head">
+        <div>
+          <p class="kicker">KOLEKSI KARYA</p>
+          <h2 id="gallery-title">Selected works</h2>
+        </div>
+        <div class="filters" role="group" aria-label="Filter kategori desain">
+          <button class="filter active" type="button" data-filter="all">Semua <span>31</span></button>
+          <button class="filter" type="button" data-filter="party">Party Flyer <span>17</span></button>
+          <button class="filter" type="button" data-filter="promotional">Promotional Flyer <span>10</span></button>
+          <button class="filter" type="button" data-filter="sports">Sports Flyer <span>4</span></button>
+        </div>
+      </div>
+      <div class="gallery" aria-live="polite"></div>
+    </section>
+
+    <footer class="footer">
+      <span>Muhammad Zaini</span>
+      <span>Graphic Designer / Video Editor</span>
+      <a href="../halaman 1/index.html">Kembali ke video <span aria-hidden="true">↗</span></a>
+    </footer>
+  </main>
+  <dialog class="lightbox">
+    <button class="close-lightbox" type="button" aria-label="Tutup pratinjau">×</button>
+    <img src="" alt="">
+    <p class="lightbox-caption"></p>
+  </dialog>
+  <script src="script.js"></script>
+</body>
+</html>
