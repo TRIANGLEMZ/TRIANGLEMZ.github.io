@@ -154,6 +154,13 @@ function normalizeInfiniteScroll() {
   if (carousel.scrollLeft > third * 1.55) carousel.scrollLeft -= third;
 }
 
+function scrollCarousel(direction) {
+  const card = carousel.querySelector(".video-card");
+  const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+  const distance = card ? card.getBoundingClientRect().width + gap : carousel.clientWidth * 0.8;
+  carousel.scrollBy({ left: direction * distance, behavior: "smooth" });
+}
+
 function startDrag(event) {
   isDragging = true;
   dragStartX = event.pageX || event.touches[0].pageX;
@@ -298,11 +305,11 @@ carousel.addEventListener("touchmove", moveDrag, { passive: true });
 carousel.addEventListener("touchend", endDrag);
 document.querySelector(".previous").addEventListener("click", () => {
   pauseHero(true);
-  carousel.scrollBy({ left: -380, behavior: "smooth" });
+  scrollCarousel(-1);
 });
 document.querySelector(".next").addEventListener("click", () => {
   pauseHero(true);
-  carousel.scrollBy({ left: 380, behavior: "smooth" });
+  scrollCarousel(1);
 });
 
 document.querySelector(".lightbox-close").addEventListener("click", closeDesignLightbox);
