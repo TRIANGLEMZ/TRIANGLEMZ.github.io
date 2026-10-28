@@ -47,6 +47,9 @@ h2 { margin: 0; font-size: clamp(22px, 4vw, 32px); letter-spacing: -.035em; line
 .login-panel { width: min(100%, 560px); margin: 0 auto; }
 .login-panel > p:not(.eyebrow, .message) { color: var(--muted); }
 .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 28px 0; }
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.admin-tab { min-height: 42px; padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: transparent; cursor: pointer; }
+.admin-tab.active, .admin-tab:hover { border-color: var(--accent); color: var(--text); background: rgba(198, 227, 106, .13); }
 .stat-card { background: linear-gradient(145deg, var(--panel-raised), var(--panel)); }
 .stat-card span, .stat-card strong { display: block; }
 .stat-card span { color: var(--muted); font-size: 13px; }
@@ -88,6 +91,17 @@ td button { margin-right: 6px; }
 .content-filter:hover, .content-filter.active { border-color: var(--accent); color: var(--text); background: rgba(198, 227, 106, .13); }
 .empty-row { color: var(--muted); text-align: center; }
 .form-actions { justify-content: start; flex-wrap: wrap; }
+.product-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 14px; margin-top: 20px; }
+.product-admin-card { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-raised); }
+.product-admin-card img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #111512; }
+.product-admin-copy { padding: 14px; }
+.product-admin-copy h3 { margin: 0 0 4px; font-size: 16px; line-height: 1.3; }
+.product-admin-copy p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.product-admin-actions { display: flex; gap: 8px; }
+.product-form { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--border); }
+.product-form h3 { margin: 0; font-size: 20px; }
+.product-form[hidden] { display: none; }
+:where(#content-management, #digital-shop-panel)[hidden] { display: none; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 @media (max-width: 620px) {
   .admin-shell { width: min(100% - 28px, 1120px); padding-top: 14px; }

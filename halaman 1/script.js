@@ -1,5 +1,8 @@
 let videos = window.DEFAULT_SITE_CONTENT.videos;
 let designWorks = window.DEFAULT_SITE_CONTENT.designs;
+let creativeWorks = [];
+let digitalProducts = [];
+let activeDigitalProduct = null;
 
 const heroVideo = document.querySelector(".hero-video");
 const heroProject = document.querySelector(".hero-project");
@@ -15,6 +18,7 @@ const designGrid = document.getElementById("design-grid");
 let activeIndex = 0;
 let videoPreviewObserver;
 let designImageObserver;
+let creativeVideoObserver;
 
 function updateHeroPanel(item) {
   heroProject.textContent = `Featured work / ${item.title}`;
@@ -325,6 +329,77 @@ function buildDesignGallery() {
   });
 }
 
+function buildCreativeGallery() {
+  creativeVideoObserver?.disconnect();
+  const section = document.getElementById("proses-kreatif");
+  const grid = document.getElementById("creative-grid");
+  const navLink = document.querySelector('.main-nav a[href="#proses-kreatif"]');
+  grid.replaceChildren();
+  section.hidden = creativeWorks.length === 0;
+  navLink.hidden = section.hidden;
+  creativeWorks.forEach((work) => {
+    const card = document.createElement("article");
+    card.className = "creative-card";
+    const media = document.createElement("div");
+    media.className = "creative-media";
+    if (work.kind === "process_video") {
+      const video = document.createElement("video");
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = "none";
+      video.dataset.src = work.media;
+      if (work.thumbnail) video.poster = new URL(work.thumbnail, window.location.href).href;
+      media.appendChild(video);
+    } else {
+      const image = document.createElement("img");
+      image.src = new URL(work.thumbnail || work.media, window.location.href).href;
+      image.alt = work.title;
+      image.loading = "lazy";
+      image.decoding = "async";
+      const button = document.createElement("button");
+      button.className = "creative-image-button";
+      button.type = "button";
+      button.setAttribute("aria-label", `Lihat foto ${work.title}`);
+      button.appendChild(image);
+      button.addEventListener("click", () => openDesignLightbox({
+        image: work.media,
+        title: work.title,
+        description: work.description
+      }));
+      media.appendChild(button);
+    }
+    const copy = document.createElement("div");
+    copy.className = "creative-copy";
+    const title = document.createElement("h3");
+    title.textContent = work.title;
+    const description = document.createElement("p");
+    description.textContent = work.description || work.category || "";
+    copy.append(title, description);
+    card.append(media, copy);
+    grid.appendChild(card);
+  });
+  const videosToLoad = grid.querySelectorAll("video[data-src]");
+  if ("IntersectionObserver" in window) {
+    creativeVideoObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const video = entry.target;
+        video.src = new URL(video.dataset.src, window.location.href).href;
+        video.preload = "metadata";
+        video.load();
+        observer.unobserve(video);
+      });
+    }, { rootMargin: "160px" });
+    videosToLoad.forEach((video) => creativeVideoObserver.observe(video));
+  } else {
+    videosToLoad.forEach((video) => {
+      video.src = new URL(video.dataset.src, window.location.href).href;
+      video.preload = "metadata";
+      video.load();
+    });
+  }
+}
+
 heroVideo.addEventListener("ended", () => {
   if (videos.length) setHero((activeIndex + 1) % videos.length);
 });
@@ -375,9 +450,11 @@ async function loadManagedContent() {
   if (!supabaseClient) {
     try {
       const localRows = await window.portfolioLocalStore.list();
-      const [managedVideos, managedImages] = await Promise.all([
+      const [managedVideos, managedImages, managedProcessVideos, managedProcessImages] = await Promise.all([
         window.portfolioLocalStore.getSetting("managed:video"),
-        window.portfolioLocalStore.getSetting("managed:image")
+        window.portfolioLocalStore.getSetting("managed:image"),
+        window.portfolioLocalStore.getSetting("managed:process_video"),
+        window.portfolioLocalStore.getSetting("managed:process_image")
       ]);
       const localMediaUrl = (row) => {
         if (row.blob instanceof Blob) return URL.createObjectURL(row.blob);
@@ -424,6 +501,22 @@ async function loadManagedContent() {
           .filter((row) => row.image);
         buildDesignGallery();
       }
+      if (managedProcessVideos || managedProcessImages) {
+        creativeWorks = localRows
+          .filter((row) => row.kind === "process_video" ? managedProcessVideos : row.kind === "process_image" && managedProcessImages)
+          .map((row) => ({
+            kind: row.kind,
+            media: localMediaUrl(row),
+            thumbnail: row.thumbnail_blob instanceof Blob
+              ? URL.createObjectURL(row.thumbnail_blob)
+              : row.thumbnail_url || "",
+            title: row.title,
+            description: row.description,
+            category: row.category
+          }))
+          .filter((row) => row.media);
+        buildCreativeGallery();
+      }
       renderSalesLinks(localRows.filter((row) => row.kind === "sale" && row.link_url));
     } catch (error) {
       console.error("Gagal memuat konten lokal; konten bawaan tetap ditampilkan:", error);
@@ -458,6 +551,19 @@ async function loadManagedContent() {
         description: item.description,
         category: item.category
       }));
+    const managedCreativeWorks = data
+      .filter((item) =>
+        (item.kind === "process_video" && managedKinds.has("process_video")
+          || item.kind === "process_image" && managedKinds.has("process_image"))
+        && item.media_url)
+      .map((item) => ({
+        kind: item.kind,
+        media: item.media_url,
+        thumbnail: item.thumbnail_url,
+        title: item.title,
+        description: item.description,
+        category: item.category
+      }));
     if (managedKinds.has("video")) {
       videos = managedVideos;
       if (videos.length) {
@@ -478,6 +584,10 @@ async function loadManagedContent() {
     if (managedKinds.has("image")) {
       designWorks = managedDesigns;
       buildDesignGallery();
+    }
+    if (managedKinds.has("process_video") || managedKinds.has("process_image")) {
+      creativeWorks = managedCreativeWorks;
+      buildCreativeGallery();
     }
     renderSalesLinks(data.filter((item) => item.kind === "sale" && item.link_url));
   } catch (error) {
@@ -513,6 +623,168 @@ function renderSalesLinks(items) {
   section.hidden = items.length === 0;
 }
 
+function getYouTubeVideoId(value) {
+  try {
+    const url = new URL(value);
+    if (!["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com"].includes(url.hostname)
+      && url.hostname !== "youtu.be") return "";
+    if (url.hostname === "youtu.be") return url.pathname.slice(1).split("/")[0];
+    if (url.pathname === "/watch") return url.searchParams.get("v") || "";
+    const match = url.pathname.match(/^\/(?:embed|shorts)\/([A-Za-z0-9_-]+)/);
+    return match?.[1] || "";
+  } catch {
+    return "";
+  }
+}
+
+function formatPrice(price) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0
+  }).format(Number(price));
+}
+
+function openDigitalProduct(product) {
+  activeDigitalProduct = product;
+  const dialog = document.getElementById("shop-dialog");
+  const preview = document.getElementById("shop-dialog-preview");
+  preview.replaceChildren();
+  if (product.preview_type === "youtube") {
+    const videoId = getYouTubeVideoId(product.preview_url);
+    if (videoId) {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`;
+      iframe.title = `Preview ${product.title}`;
+      iframe.loading = "lazy";
+      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      iframe.allowFullscreen = true;
+      preview.appendChild(iframe);
+    }
+  } else if (product.preview_type === "video" && product.preview_url) {
+    const video = document.createElement("video");
+    video.controls = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.src = new URL(product.preview_url, window.location.href).href;
+    preview.appendChild(video);
+  }
+  preview.hidden = !preview.childElementCount;
+  document.getElementById("shop-dialog-type").textContent = product.asset_type;
+  document.getElementById("shop-dialog-title").textContent = product.title;
+  document.getElementById("shop-dialog-description").textContent = product.description || "Aset digital siap digunakan.";
+  document.getElementById("shop-dialog-price").textContent = formatPrice(product.price);
+  document.getElementById("shop-purchase-form").reset();
+  document.getElementById("shop-purchase-message").textContent = "";
+  dialog.hidden = false;
+  dialog.setAttribute("aria-hidden", "false");
+  document.getElementById("buyer-name").focus();
+}
+
+function closeDigitalProduct() {
+  const dialog = document.getElementById("shop-dialog");
+  document.getElementById("shop-dialog-preview").replaceChildren();
+  dialog.hidden = true;
+  dialog.setAttribute("aria-hidden", "true");
+  activeDigitalProduct = null;
+}
+
+function renderDigitalProducts(products) {
+  const section = document.getElementById("toko");
+  const navLink = document.querySelector('.main-nav a[href="#toko"]');
+  const grid = document.getElementById("shop-grid");
+  grid.replaceChildren();
+  digitalProducts = products;
+  section.hidden = products.length === 0;
+  navLink.hidden = section.hidden;
+  products.forEach((product) => {
+    let checkoutUrl;
+    try {
+      checkoutUrl = new URL(product.checkout_url);
+    } catch {
+      console.error("Link pembayaran produk tidak valid:", product.id);
+      return;
+    }
+    if (!["http:", "https:"].includes(checkoutUrl.protocol)) return;
+    const card = document.createElement("article");
+    card.className = "shop-card";
+    const cover = document.createElement("img");
+    cover.className = "shop-card-cover";
+    cover.src = new URL(product.cover_url, window.location.href).href;
+    cover.alt = `Sampul ${product.title}`;
+    cover.loading = "lazy";
+    cover.decoding = "async";
+    const copy = document.createElement("div");
+    copy.className = "shop-card-copy";
+    const type = document.createElement("p");
+    type.className = "shop-card-type";
+    type.textContent = product.asset_type;
+    const title = document.createElement("h3");
+    title.textContent = product.title;
+    const price = document.createElement("strong");
+    price.className = "shop-card-price";
+    price.textContent = formatPrice(product.price);
+    const button = document.createElement("button");
+    button.className = "shop-card-button";
+    button.type = "button";
+    button.textContent = "Detail & beli";
+    button.addEventListener("click", () => openDigitalProduct(product));
+    copy.append(type, title, price, button);
+    card.append(cover, copy);
+    grid.appendChild(card);
+  });
+}
+
+async function loadDigitalProducts(supabaseClient) {
+  if (!supabaseClient) {
+    const rows = await window.portfolioLocalStore.list();
+    const products = rows.filter((row) => row.kind === "product").map((row) => ({
+      ...row,
+      cover_url: row.cover_blob instanceof Blob ? URL.createObjectURL(row.cover_blob) : row.cover_url,
+      preview_url: row.preview_blob instanceof Blob ? URL.createObjectURL(row.preview_blob) : row.preview_url
+    }));
+    renderDigitalProducts(products);
+    return;
+  }
+  const { data, error } = await supabaseClient.from("digital_products")
+    .select("id,title,description,asset_type,price,cover_url,preview_url,preview_type,checkout_url,sort_order")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("Gagal memuat aset digital:", error);
+    return;
+  }
+  renderDigitalProducts(data);
+}
+
+document.querySelector(".shop-dialog-close").addEventListener("click", closeDigitalProduct);
+document.getElementById("shop-dialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeDigitalProduct();
+});
+document.getElementById("shop-purchase-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = document.getElementById("buyer-name").value.trim();
+  if (!name || !activeDigitalProduct) {
+    document.getElementById("shop-purchase-message").textContent = "Masukkan nama Anda sebelum melanjutkan.";
+    return;
+  }
+  let checkoutUrl;
+  try {
+    checkoutUrl = new URL(activeDigitalProduct.checkout_url);
+  } catch {
+    document.getElementById("shop-purchase-message").textContent = "Link pembelian produk belum tersedia.";
+    return;
+  }
+  if (!["http:", "https:"].includes(checkoutUrl.protocol)) {
+    document.getElementById("shop-purchase-message").textContent = "Link pembelian produk tidak valid.";
+    return;
+  }
+  window.location.assign(checkoutUrl.href);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !document.getElementById("shop-dialog").hidden) closeDigitalProduct();
+});
+
 if (window.location.protocol === "file:") {
   document.getElementById("file-protocol-notice").hidden = false;
 }
@@ -537,4 +809,7 @@ async function recordDailyVisitor() {
 }
 
 loadManagedContent();
+loadDigitalProducts(window.createPortfolioSupabaseClient?.()).catch((error) => {
+  console.error("Gagal menyiapkan toko digital:", error);
+});
 recordDailyVisitor();

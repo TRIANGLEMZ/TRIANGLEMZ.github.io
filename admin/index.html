@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Login | Porto Studio</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <main class="admin-shell">
@@ -36,11 +36,16 @@
     <section id="dashboard" hidden>
       <p class="eyebrow">PENGELOLAAN</p>
       <h1>Kelola Porto Studio</h1>
+      <nav class="admin-tabs" aria-label="Menu pengelolaan">
+        <button class="admin-tab active" type="button" data-admin-view="content" aria-pressed="true">Konten</button>
+        <button class="admin-tab" type="button" data-admin-view="products" aria-pressed="false">Jualan aset digital</button>
+      </nav>
       <div class="stats-grid">
         <article class="stat-card"><span>Pengunjung unik hari ini</span><strong id="today-count">—</strong></article>
         <article class="stat-card"><span>Pengunjung harian sepanjang waktu</span><strong id="total-count">—</strong></article>
       </div>
 
+      <div id="content-management">
       <section class="panel">
         <div class="section-title">
           <div><p class="eyebrow">KONTEN</p><h2>Kelola konten &amp; tautan</h2></div>
@@ -53,6 +58,7 @@
           <button class="content-filter active" type="button" data-kind-filter="all" aria-pressed="true">Semua</button>
           <button class="content-filter" type="button" data-kind-filter="video" aria-pressed="false">Video</button>
           <button class="content-filter" type="button" data-kind-filter="image" aria-pressed="false">Poster</button>
+          <button class="content-filter" type="button" data-kind-filter="process" aria-pressed="false">Proses kreatif</button>
           <button class="content-filter" type="button" data-kind-filter="sale" aria-pressed="false">Tautan</button>
         </div>
         <div class="table-wrap">
@@ -71,6 +77,8 @@
             <select name="kind" required>
               <option value="video">Video</option>
               <option value="image">Poster</option>
+              <option value="process_video">Video proses kreatif</option>
+              <option value="process_image">Foto proses kreatif</option>
               <option value="sale">Tautan penjualan</option>
             </select>
           </label>
@@ -99,6 +107,49 @@
           </div>
         </form>
       </section>
+      </div>
+
+      <section id="digital-shop-panel" class="panel" hidden aria-labelledby="digital-shop-title">
+        <div class="section-title">
+          <div><p class="eyebrow">TOKO DIGITAL</p><h2 id="digital-shop-title">Kelola aset digital</h2></div>
+          <button id="new-product-button" class="button" type="button">Tambah aset</button>
+        </div>
+        <p>Atur jenis aset, harga, sampul, video preview, deskripsi, dan link pembayaran eksternal.</p>
+        <div id="product-list" class="product-admin-grid"></div>
+        <p id="product-message" class="message" role="status"></p>
+        <form id="product-form" class="product-form" hidden>
+          <h3 id="product-form-title">Tambah aset digital</h3>
+          <input name="id" type="hidden">
+          <label>Nama aset<input name="title" maxlength="160" required></label>
+          <label>Jenis aset
+            <select name="asset_type" required>
+              <option value="Template Photoshop (PSD)">Template Photoshop (PSD)</option>
+              <option value="Template After Effects">Template After Effects</option>
+              <option value="Template Premiere Pro">Template Premiere Pro</option>
+              <option value="Preset">Preset</option>
+              <option value="LUT">LUT</option>
+              <option value="Aset digital lainnya">Aset digital lainnya</option>
+            </select>
+          </label>
+          <label>Harga (Rupiah)<input name="price" type="number" min="0" max="9999999999.99" step="1" inputmode="numeric" required></label>
+          <label>Deskripsi<textarea name="description" rows="4" maxlength="1500"></textarea></label>
+          <label>Gambar sampul<input name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></label>
+          <label>Jenis preview
+            <select name="preview_type">
+              <option value="video">Video yang diunggah</option>
+              <option value="youtube">Video YouTube</option>
+              <option value="none">Tanpa video preview</option>
+            </select>
+          </label>
+          <label id="product-preview-file-field">Video preview<input name="preview_file" type="file" accept="video/mp4,video/webm,video/quicktime"><small>Video maksimal 100 MB. Gunakan YouTube untuk file yang lebih besar.</small></label>
+          <label id="product-preview-youtube-field" hidden>Link video YouTube<input name="preview_youtube_url" type="url" placeholder="https://youtube.com/watch?v=..."></label>
+          <label>Link pembayaran / pembelian<input name="checkout_url" type="url" placeholder="https://..." required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">Simpan aset</button>
+            <button id="cancel-product-button" class="button button-quiet" type="button">Batal</button>
+          </div>
+        </form>
+      </section>
     </section>
   </main>
 
@@ -106,6 +157,6 @@
   <script src="../halaman%201/supabase-config.js"></script>
   <script src="../halaman%201/content-data.js"></script>
   <script src="../halaman%201/local-store.js"></script>
-  <script src="admin.js"></script>
+  <script src="admin.js?v=2"></script>
 </body>
 </html>

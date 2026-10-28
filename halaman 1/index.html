@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Muhammad Zaini's professional video editing and graphic design portfolio.">
   <title>Porto Studio | Video & Design</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <header class="topbar">
@@ -17,6 +17,8 @@
       <a class="active" href="#beranda">Home</a>
       <a href="#video">Video</a>
       <a href="#design">Design</a>
+      <a href="#proses-kreatif" hidden>Proses</a>
+      <a href="#toko" hidden>Toko</a>
       <a href="#tentang">About</a>
       <a href="#kontak">Contact</a>
     </nav>
@@ -112,6 +114,17 @@
       <div class="design-grid" id="design-grid" aria-live="polite"></div>
     </section>
 
+    <section class="creative-section" id="proses-kreatif" hidden aria-labelledby="creative-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">DI BALIK LAYAR</p>
+          <h2 id="creative-title">Proses Kreatif</h2>
+        </div>
+        <p class="section-note">Momen pengambilan gambar, proses editing, dan kegiatan kreatif lainnya.</p>
+      </div>
+      <div class="creative-grid" id="creative-grid"></div>
+    </section>
+
     <div class="design-lightbox" id="design-lightbox" aria-hidden="true">
       <div class="lightbox-panel" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
         <button type="button" class="lightbox-close" aria-label="Close preview">×</button>
@@ -161,6 +174,34 @@
       <div class="sales-links" id="sales-links"></div>
     </section>
 
+    <section class="shop-section" id="toko" hidden aria-labelledby="shop-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ASET DIGITAL</p>
+          <h2 id="shop-title">Toko Digital</h2>
+        </div>
+        <p class="section-note">Template, preset, LUT, dan aset digital siap digunakan.</p>
+      </div>
+      <div class="shop-grid" id="shop-grid"></div>
+    </section>
+
+    <div class="shop-dialog" id="shop-dialog" aria-hidden="true" hidden>
+      <section class="shop-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="shop-dialog-title">
+        <button class="shop-dialog-close" type="button" aria-label="Tutup">×</button>
+        <div id="shop-dialog-preview" class="shop-dialog-preview"></div>
+        <p class="eyebrow" id="shop-dialog-type"></p>
+        <h2 id="shop-dialog-title"></h2>
+        <p id="shop-dialog-description"></p>
+        <strong class="shop-dialog-price" id="shop-dialog-price"></strong>
+        <form id="shop-purchase-form">
+          <label for="buyer-name">Nama pembeli</label>
+          <input id="buyer-name" name="buyer_name" maxlength="100" autocomplete="name" required>
+          <button class="button" type="submit">Lanjutkan pembelian</button>
+          <p class="shop-purchase-message" id="shop-purchase-message" role="status"></p>
+        </form>
+      </section>
+    </div>
+
     <section class="contact-section" id="kontak" aria-labelledby="contact-title">
       <div class="contact-copy">
         <p class="eyebrow">LET'S COLLABORATE</p>
@@ -184,6 +225,6 @@
   <script src="supabase-config.js"></script>
   <script src="content-data.js?v=2"></script>
   <script src="local-store.js"></script>
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=5"></script>
 </body>
 </html>

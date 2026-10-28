@@ -8,12 +8,33 @@ const contentList = document.getElementById("content-list");
 const editorPanel = document.getElementById("editor-panel");
 const contentForm = document.getElementById("content-form");
 const kindField = contentForm.elements.kind;
+const productForm = document.getElementById("product-form");
+const productList = document.getElementById("product-list");
+const productMessage = document.getElementById("product-message");
 let supabaseClient;
 let contentRows = [];
+let productRows = [];
 let activeContentFilter = "all";
 let localMode = false;
 let previewObjectUrls = [];
+let productPreviewObjectUrls = [];
 let framePickerObjectUrl = "";
+
+function isVideoKind(kind) {
+  return kind === "video" || kind === "process_video";
+}
+
+function isImageKind(kind) {
+  return kind === "image" || kind === "process_image";
+}
+
+function kindLabel(kind) {
+  if (kind === "video") return "Video";
+  if (kind === "image") return "Poster";
+  if (kind === "process_video") return "Video proses";
+  if (kind === "process_image") return "Foto proses";
+  return "Penjualan";
+}
 
 function showMessage(element, message, isError = false) {
   element.textContent = message;
@@ -119,6 +140,8 @@ async function loadContent() {
     contentRows = await window.portfolioLocalStore.list();
     contentRows.sort((left, right) => left.sort_order - right.sort_order);
     renderContentList();
+    productRows = contentRows.filter((row) => row.kind === "product");
+    renderProductList();
     return;
   }
   const { data, error } = await supabaseClient
@@ -129,6 +152,14 @@ async function loadContent() {
   if (error) throw error;
   contentRows = data;
   renderContentList();
+  try {
+    await loadProducts();
+  } catch (productError) {
+    console.error("Gagal memuat aset digital:", productError);
+    productRows = [];
+    renderProductList();
+    showMessage(productMessage, `Toko belum siap: ${productError.message}. Jalankan pembaruan SQL Supabase.`, true);
+  }
 }
 
 async function loadLocalStatistics() {
@@ -143,9 +174,12 @@ function renderContentList() {
   previewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
   previewObjectUrls = [];
   contentList.replaceChildren();
+  const contentItems = contentRows.filter((row) => row.kind !== "product");
   const rows = activeContentFilter === "all"
-    ? contentRows
-    : contentRows.filter((row) => row.kind === activeContentFilter);
+    ? contentItems
+    : activeContentFilter === "process"
+      ? contentItems.filter((row) => row.kind.startsWith("process_"))
+      : contentItems.filter((row) => row.kind === activeContentFilter);
   if (!rows.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
@@ -161,13 +195,13 @@ function renderContentList() {
     const previewCell = document.createElement("td");
     previewCell.className = "preview-cell";
     const preview = document.createElement("div");
-    preview.className = `content-preview${row.kind === "image" ? " content-preview-poster" : ""}`;
-    const localImage = row.kind === "image" ? row.blob : row.kind === "video" ? row.thumbnail_blob : null;
+    preview.className = `content-preview${isImageKind(row.kind) ? " content-preview-poster" : ""}`;
+    const localImage = isImageKind(row.kind) ? row.blob : isVideoKind(row.kind) ? row.thumbnail_blob : null;
     const previewUrl = localImage instanceof Blob
       ? URL.createObjectURL(localImage)
-      : row.kind === "video"
+      : isVideoKind(row.kind)
         ? row.thumbnail_url
-        : row.kind === "image"
+        : isImageKind(row.kind)
           ? row.media_url
           : "";
     if (localImage instanceof Blob) previewObjectUrls.push(previewUrl);
@@ -179,10 +213,10 @@ function renderContentList() {
       image.addEventListener("error", () => {
         preview.classList.add("content-preview-empty");
         image.remove();
-        preview.textContent = row.kind === "video" ? "Video" : "Poster";
+        preview.textContent = isVideoKind(row.kind) ? "Video" : "Foto";
       }, { once: true });
       preview.appendChild(image);
-    } else if (row.kind === "video" && (row.blob instanceof Blob || row.media_url)) {
+    } else if (isVideoKind(row.kind) && (row.blob instanceof Blob || row.media_url)) {
       const video = document.createElement("video");
       video.muted = true;
       video.playsInline = true;
@@ -197,12 +231,12 @@ function renderContentList() {
       preview.appendChild(video);
     } else {
       preview.classList.add("content-preview-empty");
-      preview.textContent = row.kind === "video" ? "Video" : row.kind === "image" ? "Poster" : "Tautan";
+      preview.textContent = isVideoKind(row.kind) ? "Video" : isImageKind(row.kind) ? "Foto" : "Tautan";
     }
     previewCell.appendChild(preview);
     tr.appendChild(previewCell);
     const values = [
-      row.kind === "video" ? "Video" : row.kind === "image" ? "Poster" : "Penjualan",
+      kindLabel(row.kind),
       row.title,
       row.category || "—"
     ];
@@ -226,6 +260,363 @@ function renderContentList() {
     tr.appendChild(actionCell);
     contentList.appendChild(tr);
   });
+}
+
+async function loadProducts() {
+  if (localMode) {
+    productRows = contentRows.filter((row) => row.kind === "product");
+    renderProductList();
+    return;
+  }
+  const { data, error } = await supabaseClient.from("digital_products")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  productRows = data;
+  renderProductList();
+}
+
+function renderProductList() {
+  productPreviewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+  productPreviewObjectUrls = [];
+  productList.replaceChildren();
+  productRows.forEach((product) => {
+    const card = document.createElement("article");
+    card.className = "product-admin-card";
+    const cover = document.createElement("img");
+    cover.alt = `Sampul ${product.title}`;
+    cover.loading = "lazy";
+    cover.src = product.cover_blob instanceof Blob
+      ? URL.createObjectURL(product.cover_blob)
+      : product.cover_url;
+    if (product.cover_blob instanceof Blob) productPreviewObjectUrls.push(cover.src);
+    const copy = document.createElement("div");
+    copy.className = "product-admin-copy";
+    const title = document.createElement("h3");
+    title.textContent = product.title;
+    const details = document.createElement("p");
+    details.textContent = `${product.asset_type} · ${formatProductPrice(product.price)}`;
+    const actions = document.createElement("div");
+    actions.className = "product-admin-actions";
+    const edit = document.createElement("button");
+    edit.className = "row-button";
+    edit.type = "button";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => editProduct(product));
+    const remove = document.createElement("button");
+    remove.className = "row-button delete";
+    remove.type = "button";
+    remove.textContent = "Hapus";
+    remove.addEventListener("click", () => deleteProduct(product));
+    actions.append(edit, remove);
+    copy.append(title, details, actions);
+    card.append(cover, copy);
+    productList.appendChild(card);
+  });
+  if (!productRows.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-row";
+    empty.textContent = "Belum ada aset digital. Pilih “Tambah aset” untuk mulai.";
+    productList.appendChild(empty);
+  }
+}
+
+function formatProductPrice(price) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0
+  }).format(Number(price));
+}
+
+function updateProductFields() {
+  const previewType = productForm.elements.preview_type.value;
+  const previewFileField = document.getElementById("product-preview-file-field");
+  const previewYoutubeField = document.getElementById("product-preview-youtube-field");
+  const current = productRows.find((product) => product.id === productForm.elements.id.value);
+  const coverInput = productForm.elements.cover;
+  const previewFileInput = productForm.elements.preview_file;
+  const youtubeInput = productForm.elements.preview_youtube_url;
+  previewFileField.hidden = previewType !== "video";
+  previewYoutubeField.hidden = previewType !== "youtube";
+  coverInput.required = !current?.cover_url && !(current?.cover_blob instanceof Blob);
+  previewFileInput.required = previewType === "video"
+    && !(current?.preview_type === "video" && current.preview_url);
+  youtubeInput.required = previewType === "youtube";
+}
+
+function editProduct(product) {
+  productForm.reset();
+  productForm.elements.id.value = product.id;
+  productForm.elements.title.value = product.title;
+  productForm.elements.asset_type.value = product.asset_type;
+  productForm.elements.price.value = product.price;
+  productForm.elements.description.value = product.description;
+  productForm.elements.checkout_url.value = product.checkout_url;
+  productForm.elements.preview_type.value = product.preview_type || "video";
+  productForm.elements.preview_youtube_url.value = product.preview_type === "youtube" ? product.preview_url : "";
+  document.getElementById("product-form-title").textContent = "Edit aset digital";
+  productForm.hidden = false;
+  updateProductFields();
+  productForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function openNewProductForm() {
+  productForm.reset();
+  productForm.elements.id.value = "";
+  productForm.elements.preview_type.value = "video";
+  document.getElementById("product-form-title").textContent = "Tambah aset digital";
+  productForm.hidden = false;
+  updateProductFields();
+  productForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeProductForm() {
+  productForm.reset();
+  productForm.elements.id.value = "";
+  productForm.hidden = true;
+  showMessage(productMessage, "");
+  updateProductFields();
+}
+
+function isHttpUrl(value) {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
+
+function normalizeYouTubeUrl(value) {
+  const url = new URL(value);
+  if (!["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "youtu.be"].includes(url.hostname)) {
+    throw new Error("Masukkan link YouTube yang valid.");
+  }
+  const videoId = url.hostname === "youtu.be"
+    ? url.pathname.slice(1).split("/")[0]
+    : url.pathname === "/watch"
+      ? url.searchParams.get("v")
+      : url.pathname.match(/^\/(?:embed|shorts)\/([A-Za-z0-9_-]+)/)?.[1];
+  if (!videoId || !/^[A-Za-z0-9_-]{6,}$/.test(videoId)) {
+    throw new Error("Link YouTube tidak berisi ID video yang valid.");
+  }
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+}
+
+async function uploadProductFile(file, suffix = "") {
+  const extension = file.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const path = `${crypto.randomUUID()}${suffix}.${extension}`;
+  const { error } = await supabaseClient.storage.from("site-media").upload(path, file, {
+    contentType: file.type,
+    upsert: false
+  });
+  if (error) throw error;
+  return supabaseClient.storage.from("site-media").getPublicUrl(path).data.publicUrl;
+}
+
+async function saveProduct(event) {
+  event.preventDefault();
+  const formData = new FormData(productForm);
+  const id = String(formData.get("id") || "");
+  const current = productRows.find((product) => product.id === id);
+  const cover = formData.get("cover");
+  const previewFile = formData.get("preview_file");
+  const previewType = String(formData.get("preview_type"));
+  const youtubeInput = String(formData.get("preview_youtube_url") || "").trim();
+  const checkoutUrl = String(formData.get("checkout_url") || "").trim();
+  const price = Number(formData.get("price"));
+  let previewUrl = "";
+
+  if (!Number.isFinite(price) || price < 0 || price > 9999999999.99) {
+    showMessage(productMessage, "Masukkan harga yang valid.", true);
+    return;
+  }
+  if (!isHttpUrl(checkoutUrl)) {
+    showMessage(productMessage, "Link pembelian harus dimulai dengan http:// atau https://.", true);
+    return;
+  }
+  if (cover.size && !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(cover.type)) {
+    showMessage(productMessage, "Sampul harus JPG, PNG, WebP, atau GIF.", true);
+    return;
+  }
+  if (cover.size > 20 * 1024 * 1024) {
+    showMessage(productMessage, "Ukuran gambar sampul maksimal 20 MB.", true);
+    return;
+  }
+  if (previewType === "youtube") {
+    try {
+      previewUrl = normalizeYouTubeUrl(youtubeInput);
+    } catch (error) {
+      showMessage(productMessage, error.message, true);
+      return;
+    }
+  } else if (previewType === "video") {
+    previewUrl = previewFile.size ? "" : current?.preview_type === "video" ? current.preview_url : "";
+    if (previewFile.size && !["video/mp4", "video/webm", "video/quicktime"].includes(previewFile.type)) {
+      showMessage(productMessage, "Video preview harus MP4, WebM, atau MOV.", true);
+      return;
+    }
+    if (previewFile.size > 100 * 1024 * 1024) {
+      showMessage(productMessage, "Ukuran video preview maksimal 100 MB. Gunakan link YouTube untuk file yang lebih besar.", true);
+      return;
+    }
+    if (!previewFile.size && !previewUrl) {
+      showMessage(productMessage, "Pilih video preview atau gunakan link YouTube.", true);
+      return;
+    }
+  }
+  if (!cover.size && !current?.cover_url && !(current?.cover_blob instanceof Blob)) {
+    showMessage(productMessage, "Unggah gambar sampul produk.", true);
+    return;
+  }
+
+  const button = productForm.querySelector('[type="submit"]');
+  button.disabled = true;
+  const newUploads = [];
+  let saved = false;
+  try {
+    let coverUrl = current?.cover_url || "";
+    let coverBlob = current?.cover_blob || null;
+    if (cover.size) {
+      if (localMode) {
+        coverUrl = `local://product-cover/${id || crypto.randomUUID()}`;
+        coverBlob = cover;
+      } else {
+        coverUrl = await uploadProductFile(cover, "-cover");
+        newUploads.push(coverUrl);
+        coverBlob = null;
+      }
+    }
+    let previewBlob = null;
+    if (previewType === "video") {
+      if (previewFile.size) {
+        if (localMode) {
+          previewUrl = `local://product-preview/${id || crypto.randomUUID()}`;
+          previewBlob = previewFile;
+        } else {
+          previewUrl = await uploadProductFile(previewFile, "-preview");
+          newUploads.push(previewUrl);
+        }
+      } else {
+        previewUrl = current?.preview_type === "video" ? current.preview_url : "";
+        previewBlob = current?.preview_type === "video" ? current.preview_blob || null : null;
+      }
+    } else if (previewType === "none") {
+      previewUrl = "";
+    }
+
+    const record = {
+      title: String(formData.get("title")).trim(),
+      description: String(formData.get("description")).trim(),
+      asset_type: String(formData.get("asset_type")),
+      price,
+      cover_url: coverUrl,
+      preview_url: previewUrl,
+      preview_type: previewType,
+      checkout_url: new URL(checkoutUrl).href,
+      sort_order: current?.sort_order ?? productRows.length
+    };
+
+    if (localMode) {
+      const productId = id || crypto.randomUUID();
+      await window.portfolioLocalStore.save({
+        ...record,
+        id: productId,
+        kind: "product",
+        cover_blob: coverBlob,
+        preview_blob: previewBlob
+      });
+    } else {
+      const result = id
+        ? await supabaseClient.from("digital_products").update(record).eq("id", id)
+        : await supabaseClient.from("digital_products").insert(record);
+      if (result.error) throw result.error;
+    }
+    saved = true;
+    let cleanupWarning = false;
+    const oldMedia = [];
+    if (!localMode && current?.cover_url && cover.size) oldMedia.push(current.cover_url);
+    if (!localMode && current?.preview_type === "video" && current.preview_url
+      && (previewType !== "video" || previewFile.size)) oldMedia.push(current.preview_url);
+    for (const mediaUrl of oldMedia) {
+      try {
+        await removeUploadedMedia(mediaUrl);
+      } catch (cleanupError) {
+        cleanupWarning = true;
+        console.error("Aset tersimpan, tetapi file preview lama tidak dapat dihapus:", cleanupError);
+      }
+    }
+    closeProductForm();
+    try {
+      await loadContent();
+    } catch (refreshError) {
+      console.error("Aset tersimpan, tetapi daftar aset gagal dimuat ulang:", refreshError);
+      showMessage(productMessage, `Aset tersimpan, tetapi daftar belum dapat diperbarui: ${refreshError.message}`, true);
+      return;
+    }
+    showMessage(productMessage, cleanupWarning
+      ? "Aset tersimpan, tetapi file lama belum berhasil dihapus dari penyimpanan."
+      : "Aset digital berhasil disimpan.", cleanupWarning);
+  } catch (error) {
+    console.error("Gagal menyimpan aset digital:", error);
+    if (!saved) {
+      for (const uploadUrl of newUploads) {
+        try {
+          await removeUploadedMedia(uploadUrl);
+        } catch (cleanupError) {
+          console.error("Gagal membersihkan upload produk yang belum tersimpan:", cleanupError);
+        }
+      }
+    }
+    showMessage(productMessage, `Gagal menyimpan aset: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteProduct(product) {
+  if (!window.confirm(`Hapus aset "${product.title}"?`)) return;
+  try {
+    if (localMode) {
+      await window.portfolioLocalStore.remove(product.id);
+    } else {
+      const { error } = await supabaseClient.from("digital_products").delete().eq("id", product.id);
+      if (error) throw error;
+      let cleanupFailed = false;
+      for (const mediaUrl of [product.cover_url, product.preview_type === "video" ? product.preview_url : ""]) {
+        if (!mediaUrl) continue;
+        try {
+          await removeUploadedMedia(mediaUrl);
+        } catch (cleanupError) {
+          cleanupFailed = true;
+          console.error("Produk dihapus, tetapi file aset belum dapat dihapus:", cleanupError);
+        }
+      }
+      try {
+        await loadContent();
+      } catch (refreshError) {
+        console.error("Produk dihapus, tetapi daftar aset gagal dimuat ulang:", refreshError);
+        showMessage(productMessage, `Produk dihapus, tetapi daftar belum dapat diperbarui: ${refreshError.message}`, true);
+        return;
+      }
+      showMessage(productMessage, cleanupFailed
+        ? "Produk dihapus, tetapi file lama belum berhasil dihapus dari penyimpanan."
+        : "Aset digital berhasil dihapus.", cleanupFailed);
+      return;
+    }
+    try {
+      await loadContent();
+    } catch (refreshError) {
+      console.error("Aset dihapus, tetapi daftar aset gagal dimuat ulang:", refreshError);
+      showMessage(productMessage, `Aset dihapus, tetapi daftar belum dapat diperbarui: ${refreshError.message}`, true);
+      return;
+    }
+    showMessage(productMessage, "Aset digital berhasil dihapus.");
+  } catch (error) {
+    console.error("Gagal menghapus aset digital:", error);
+    showMessage(productMessage, `Gagal menghapus aset: ${error.message}`, true);
+  }
 }
 
 async function loadStatistics() {
@@ -268,7 +659,12 @@ function resetEditor() {
 
 function updateEditorFields() {
   const isSale = kindField.value === "sale";
-  const isVideo = kindField.value === "video";
+  const isVideo = isVideoKind(kindField.value);
+  contentForm.elements.media.accept = isVideo
+    ? "video/mp4,video/webm,video/quicktime"
+    : isSale
+      ? ""
+      : "image/jpeg,image/png,image/webp,image/gif";
   document.getElementById("media-field").hidden = isSale;
   document.getElementById("media-url-field").hidden = isSale;
   document.getElementById("thumbnail-field").hidden = !isVideo;
@@ -295,7 +691,7 @@ function updateVideoFramePicker() {
   const picker = document.getElementById("video-frame-picker");
   const video = document.getElementById("frame-picker-video");
   const captureButton = document.getElementById("capture-video-frame");
-  if (kindField.value !== "video" || editorPanel.hidden) {
+  if (!isVideoKind(kindField.value) || editorPanel.hidden) {
     picker.hidden = true;
     return;
   }
@@ -382,7 +778,7 @@ async function saveContent(event) {
   if (kind !== "sale" && upload.size) {
     const isImage = upload.type.startsWith("image/");
     const isVideo = upload.type.startsWith("video/");
-    if ((kind === "image" && !isImage) || (kind === "video" && !isVideo)) {
+    if ((isImageKind(kind) && !isImage) || (isVideoKind(kind) && !isVideo)) {
       showMessage(dashboardMessage, "Jenis file tidak sesuai dengan jenis konten.", true);
       return;
     }
@@ -391,7 +787,7 @@ async function saveContent(event) {
       return;
     }
   }
-  if (thumbnailUpload.size && kind !== "video") {
+  if (thumbnailUpload.size && !isVideoKind(kind)) {
     showMessage(dashboardMessage, "Thumbnail hanya dapat ditambahkan ke konten video.", true);
     return;
   }
@@ -436,10 +832,10 @@ async function saveContent(event) {
       mediaUrl = "";
     }
 
-    let thumbnailUrl = kind === "video" || (kind === "image" && !upload.size)
+    let thumbnailUrl = isVideoKind(kind) || (isImageKind(kind) && !upload.size)
       ? current?.thumbnail_url || ""
       : "";
-    if (kind === "video" && thumbnailUpload.size) {
+    if (isVideoKind(kind) && thumbnailUpload.size) {
       const extension = thumbnailUpload.name.split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "img";
       const storagePath = `${crypto.randomUUID()}-thumbnail.${extension}`;
       const { error: uploadError } = await supabaseClient.storage.from("site-media").upload(storagePath, thumbnailUpload, {
@@ -481,7 +877,7 @@ async function saveContent(event) {
         cleanupWarning = " Konten tersimpan, tetapi file lama belum berhasil dihapus dari penyimpanan.";
       }
     }
-    if ((thumbnailUpload.size || kind !== "video") && current?.thumbnail_url) {
+    if ((thumbnailUpload.size || !isVideoKind(kind)) && current?.thumbnail_url) {
       try {
         await removeUploadedMedia(current.thumbnail_url);
       } catch (error) {
@@ -527,13 +923,13 @@ async function saveLocalContent({ formData, id, kind, upload, thumbnailUpload, m
       description: formData.get("description").trim(),
       category: formData.get("category").trim(),
       media_url: kind === "sale" ? "" : upload.size ? `local://${recordId}` : mediaUrl || current?.media_url || "",
-      thumbnail_url: kind === "video" || (kind === "image" && !upload.size)
+      thumbnail_url: isVideoKind(kind) || (isImageKind(kind) && !upload.size)
         ? current?.thumbnail_url || ""
         : "",
       link_url: kind === "sale" ? linkUrl : "",
       sort_order: current?.sort_order ?? contentRows.length,
       blob: kind === "sale" ? null : upload.size ? upload : current?.blob || null,
-      thumbnail_blob: kind === "video" ? thumbnailUpload.size ? thumbnailUpload : current?.thumbnail_blob || null : null
+      thumbnail_blob: isVideoKind(kind) ? thumbnailUpload.size ? thumbnailUpload : current?.thumbnail_blob || null : null
     };
     await window.portfolioLocalStore.save(record);
     if (kind !== "sale") await window.portfolioLocalStore.setSetting(`managed:${kind}`, true);
@@ -725,6 +1121,24 @@ document.getElementById("new-content-button").addEventListener("click", () => {
 });
 document.getElementById("cancel-edit-button").addEventListener("click", resetEditor);
 document.getElementById("import-defaults-button").addEventListener("click", importDefaults);
+document.querySelectorAll("[data-admin-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const showProducts = button.dataset.adminView === "products";
+    document.getElementById("content-management").hidden = showProducts;
+    document.getElementById("digital-shop-panel").hidden = !showProducts;
+    document.querySelectorAll("[data-admin-view]").forEach((tab) => {
+      const selected = tab === button;
+      tab.classList.toggle("active", selected);
+      tab.setAttribute("aria-pressed", String(selected));
+    });
+  });
+});
+document.getElementById("new-product-button").addEventListener("click", openNewProductForm);
+document.getElementById("cancel-product-button").addEventListener("click", closeProductForm);
+productForm.elements.preview_type.addEventListener("change", updateProductFields);
+productForm.elements.cover.addEventListener("change", updateProductFields);
+productForm.elements.preview_file.addEventListener("change", updateProductFields);
+productForm.addEventListener("submit", saveProduct);
 document.querySelectorAll("[data-kind-filter]").forEach((button) => {
   button.addEventListener("click", () => {
     activeContentFilter = button.dataset.kindFilter;
@@ -736,6 +1150,7 @@ document.querySelectorAll("[data-kind-filter]").forEach((button) => {
     renderContentList();
   });
 });
+updateProductFields();
 
 supabaseClient = window.createPortfolioSupabaseClient?.();
 if (!supabaseClient) {

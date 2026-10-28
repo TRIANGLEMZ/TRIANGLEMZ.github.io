@@ -10,13 +10,17 @@ Untuk membuat thumbnail dari video, buka **Edit** atau **Tambah konten** pada je
 
 Saat mencoba situs dari komputer, jangan membuka `index.html` dengan protokol `file://`; browser dapat memblokir pemutaran video. Jalankan server lokal dari folder proyek, misalnya `python3 -m http.server 8000`, lalu buka `http://localhost:8000/halaman%201/`. Mode konten lokal terpisah untuk setiap alamat (origin), jadi gunakan alamat yang sama untuk halaman publik dan login.
 
+Jenis konten **Video proses kreatif** dan **Foto proses kreatif** muncul terpisah dari karya portofolio di bagian **Proses Kreatif** pada halaman publik. Video proses memiliki kontrol pemutaran sendiri dan foto dapat diperbesar.
+
+Menu **Jualan aset digital** di admin mengelola sampul, jenis aset (PSD, After Effects, Premiere Pro, preset, LUT, atau lainnya), harga Rupiah, deskripsi, preview video, dan link pembayaran. Video preview dapat diunggah (maksimal 100 MB) atau ditautkan dari YouTube. Di halaman publik, pembeli membuka detail produk, memasukkan nama, lalu diarahkan ke link pembayaran yang admin atur. Nama hanya divalidasi di browser dan tidak disimpan atau dikirim ke link pembayaran oleh situs ini.
+
 Mode ini untuk pratinjau pribadi, bukan login aman: pemeriksaan terjadi di browser, dapat dilewati oleh orang yang menguasai perangkat, dan perubahan tidak dipublikasikan ke pengunjung lain. Jangan mengandalkannya untuk melindungi konten website publik. Untuk pengelolaan bersama/publik, gunakan konfigurasi Supabase di bawah.
 
 ## Konfigurasi satu kali
 
 1. Buat proyek Supabase.
 2. Di **Authentication → Users**, buat satu pengguna admin dengan email dan kata sandi Anda. Jangan menyimpan kata sandi di file website atau repositori. Nonaktifkan pendaftaran publik (**Authentication → Settings → User Signups**) agar orang lain tidak dapat membuat akun.
-3. Salin **User UID** akun tersebut. Ganti `REPLACE_WITH_ADMIN_USER_UUID` pada `supabase-setup.sql` dengan UID itu, lalu jalankan seluruh SQL tersebut satu kali di **SQL Editor**. Jangan bagikan UID pengganti atau kata sandi ke publik.
+3. Salin **User UID** akun tersebut. Ganti `REPLACE_WITH_ADMIN_USER_UUID` pada `supabase-setup.sql` dengan UID itu, lalu jalankan seluruh SQL tersebut di **SQL Editor**. Skrip dapat dijalankan kembali untuk menerapkan pembaruan skema termasuk tabel `digital_products`. Jangan bagikan UID pengganti atau kata sandi ke publik.
 4. Di **Project Settings → API**, salin **Project URL** dan **anon/public key** ke `PORTFOLIO_SUPABASE_CONFIG` dalam [halaman 1/supabase-config.js](./halaman%201/supabase-config.js). Anon key memang digunakan oleh situs publik; jangan pernah menaruh `service_role` key di file website.
 5. Publikasikan perubahan website. Buka login dari tombol **Login** di header website atau kunjungi `/admin/` langsung dengan akun yang dibuat tadi. Login hanya aktif setelah URL dan anon key Supabase diisi dan SQL sudah dijalankan. Pilih **Impor konten bawaan website** untuk memulai, lalu gunakan filter **Video**, **Poster**, dan **Tautan** untuk mengelola tiap jenis konten.
 
@@ -30,4 +34,4 @@ Statistik mencatat satu pengunjung anonim per browser per hari (menggunakan ID a
 
 Konten bawaan tetap digunakan hingga konten poster/video diimpor atau ditambahkan melalui dashboard. Jika semua konten dalam satu jenis dihapus sesudah dikelola, galeri jenis itu tetap kosong dan konten lama tidak muncul kembali. File bawaan yang sudah ada di repository tidak ikut dihapus; file yang diunggah ke bucket Supabase akan dihapus saat konten terkait dihapus.
 
-File upload dibatasi hingga 100 MB dan tipe gambar/video yang diizinkan di kebijakan bucket. Pastikan pengaturan autentikasi Supabase menggunakan HTTPS saat situs dipublikasikan.
+File upload dibatasi hingga 100 MB dan tipe gambar/video yang diizinkan di kebijakan bucket. Untuk menampilkan konten proses kreatif yang sudah dikelola di Supabase, jalankan pembaruan `supabase-setup.sql` agar jenis `process_video` dan `process_image` diterima oleh tabel. Pastikan pengaturan autentikasi Supabase menggunakan HTTPS saat situs dipublikasikan.
