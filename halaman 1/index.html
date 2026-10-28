@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Muhammad Zaini's professional video editing and graphic design portfolio.">
   <title>Porto Studio | Video & Design</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <header class="topbar">
@@ -21,12 +21,15 @@
       <a href="#kontak">Contact</a>
     </nav>
 
-    <a class="topbar-cta" href="#design">View Work</a>
+    <a class="topbar-cta" href="../admin/index.html">Login</a>
   </header>
+  <p id="file-protocol-notice" class="file-protocol-notice" role="status" hidden>
+    Video tidak dapat diputar jika halaman dibuka langsung sebagai file. Dari folder proyek, jalankan <code>python3 -m http.server 8000</code>, lalu buka <code>http://localhost:8000/halaman%201/</code>.
+  </p>
 
   <main class="site-shell">
     <section class="hero" id="beranda" aria-label="Featured video">
-      <video class="hero-video" muted playsinline preload="metadata"></video>
+      <video class="hero-video" muted playsinline preload="none"></video>
       <div class="hero-shade"></div>
       <img class="hero-portrait" src="foto%20zz.png" alt="Muhammad Zaini" fetchpriority="high">
 
@@ -38,7 +41,7 @@
 
         <div class="intro-box">
           <p class="intro-kicker">About Me</p>
-          <p class="intro-text">I'm a video editor and graphic designer focused on striking visuals, video effects and color grading, storytelling, branding, and digital content that communicates clearly. In addition to video, I design posters, flyers, and other promotional materials. I help businesses, brands, and individuals turn their ideas into polished visuals, ready for promotion, social media, and other professional needs.</p>
+          <p class="intro-text">I create polished video edits and expressive graphic designs for brands, campaigns, and social media.</p>
         </div>
 
         <p class="hero-project">Featured work</p>
@@ -46,6 +49,7 @@
 
         <div class="hero-actions">
           <button class="watch-button" type="button"><span aria-hidden="true">▶</span> Play Now</button>
+          <button class="fullscreen-button" type="button" aria-label="Tonton video layar penuh">⛶</button>
           <button class="sound-button" type="button" aria-label="Turn sound on">🔇</button>
         </div>
 
@@ -83,13 +87,11 @@
           <p class="eyebrow">PORTO STUDIO</p>
           <h2>Video Work</h2>
         </div>
-        <p class="section-note">Scroll to explore more visual stories</p>
+        <p class="section-note">A selection of video projects. Choose a clip to watch it in full.</p>
       </div>
 
-      <div class="carousel-wrap">
-        <button class="carousel-button previous" type="button" aria-label="Previous video">←</button>
-        <div class="carousel" tabindex="0" aria-label="Video gallery"></div>
-        <button class="carousel-button next" type="button" aria-label="Next video">→</button>
+      <div class="video-grid-wrap">
+        <div class="video-grid" aria-label="Video gallery"></div>
       </div>
     </section>
 
@@ -118,6 +120,7 @@
           <div>
             <p class="lightbox-label">Selected work</p>
             <h3 id="lightbox-title">Design preview</h3>
+            <p class="lightbox-description" id="lightbox-description"></p>
           </div>
           <button type="button" class="lightbox-back" data-scroll="#beranda">Back to Home</button>
         </div>
@@ -150,6 +153,14 @@
       </div>
     </section>
 
+    <section class="sales-section" id="penjualan" hidden aria-labelledby="sales-title">
+      <div class="contact-copy">
+        <p class="eyebrow">PRODUK &amp; LAYANAN</p>
+        <h2 id="sales-title">Lihat penawaran.</h2>
+      </div>
+      <div class="sales-links" id="sales-links"></div>
+    </section>
+
     <section class="contact-section" id="kontak" aria-labelledby="contact-title">
       <div class="contact-copy">
         <p class="eyebrow">LET'S COLLABORATE</p>
@@ -169,6 +180,10 @@
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="content-data.js?v=2"></script>
+  <script src="local-store.js"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>

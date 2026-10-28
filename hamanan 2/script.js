@@ -4,7 +4,7 @@ const categories = [
   { key: "sports", label: "Sports Flyer", folder: "Sports Flyer", prefix: "Sports Flyer", numbers: Array.from({ length: 4 }, (_, index) => index + 1) }
 ];
 
-const works = categories.flatMap((category) => category.numbers.map((fileNumber, index) => ({
+let works = categories.flatMap((category) => category.numbers.map((fileNumber, index) => ({
   category: category.key,
   label: category.label,
   number: index + 1,
@@ -19,23 +19,41 @@ const lightboxCaption = lightbox.querySelector(".lightbox-caption");
 
 function renderGallery(filter = "all") {
   const visibleWorks = filter === "all" ? works : works.filter((work) => work.category === filter);
-  gallery.innerHTML = visibleWorks.map((work, index) => `
-    <article class="design-card" style="animation-delay: ${Math.min(index * .025, .3)}s">
-      <button type="button" aria-label="Buka ${work.label} ${work.number}">
-        <img src="${encodeURI(work.file)}" alt="${work.label} ${work.number}" loading="lazy">
-        <span class="card-meta"><span>${work.label}</span><small>${String(work.number).padStart(2, "0")} / ${work.category === "party" ? "17" : work.category === "promotional" ? "10" : "04"}</small></span>
-      </button>
-    </article>`).join("");
-
-  gallery.querySelectorAll(".design-card button").forEach((button, index) => {
-    button.addEventListener("click", () => openLightbox(visibleWorks[index]));
+  gallery.replaceChildren();
+  visibleWorks.forEach((work, index) => {
+    const card = document.createElement("article");
+    card.className = "design-card";
+    card.style.animationDelay = `${Math.min(index * .025, .3)}s`;
+    const button = document.createElement("button");
+    button.type = "button";
+    const title = work.title || `${work.label} ${work.number}`;
+    button.setAttribute("aria-label", `Buka ${title}`);
+    const image = document.createElement("img");
+    image.src = encodeURI(work.file);
+    image.alt = title;
+    image.loading = "lazy";
+    const meta = document.createElement("span");
+    meta.className = "card-meta";
+    const label = document.createElement("span");
+    label.textContent = work.label;
+    const count = document.createElement("small");
+    const categoryTotal = works.filter((item) => item.category === work.category).length || works.length;
+    count.textContent = `${String(work.number).padStart(2, "0")} / ${categoryTotal}`;
+    meta.append(label, count);
+    button.append(image, meta);
+    button.addEventListener("click", () => openLightbox(work));
+    card.appendChild(button);
+    gallery.appendChild(card);
   });
 }
 
 function openLightbox(work) {
+  const title = work.title || `${work.label} ${work.number}`;
   lightboxImage.src = encodeURI(work.file);
-  lightboxImage.alt = `${work.label} ${work.number}`;
-  lightboxCaption.textContent = `${work.label} / karya ${String(work.number).padStart(2, "0")}`;
+  lightboxImage.alt = title;
+  lightboxCaption.textContent = work.description
+    ? `${title} — ${work.description}`
+    : `${work.label} / karya ${String(work.number).padStart(2, "0")}`;
   lightbox.showModal();
 }
 
@@ -53,3 +71,70 @@ lightbox.addEventListener("click", (event) => {
 });
 
 renderGallery();
+
+async function loadManagedDesigns() {
+  const supabaseClient = window.createPortfolioSupabaseClient?.();
+  if (!supabaseClient) return;
+  try {
+    const [contentResult, stateResult] = await Promise.all([
+      supabaseClient.from("site_content")
+        .select("title,category,media_url")
+        .eq("kind", "image")
+        .order("sort_order", { ascending: true }),
+      supabaseClient.from("site_content_state").select("kind,managed").eq("kind", "image").maybeSingle()
+    ]);
+    if (contentResult.error) throw contentResult.error;
+    if (stateResult.error) throw stateResult.error;
+    if (!stateResult.data?.managed) return;
+    const data = contentResult.data.filter((item) => item.media_url);
+    works = data.map((item, index) => {
+      const categoryText = item.category.trim();
+      const category = categoryText.toLowerCase().includes("party") ? "party"
+        : categoryText.toLowerCase().includes("promotion") ? "promotional"
+          : categoryText.toLowerCase().includes("sport") ? "sports" : "all";
+      return {
+        category,
+        label: categoryText || "Design",
+        number: index + 1,
+        file: item.media_url,
+        title: item.title,
+        description: item.description
+      };
+    });
+    const counts = Object.fromEntries(["all", "party", "promotional", "sports"].map((key) => [
+      key,
+      key === "all" ? works.length : works.filter((work) => work.category === key).length
+    ]));
+    filters.forEach((button) => {
+      const count = button.querySelector("span");
+      if (count) count.textContent = counts[button.dataset.filter];
+    });
+    document.querySelector(".count strong").textContent = works.length;
+    document.querySelector(".count").lastChild.textContent = " karya terpilih";
+    renderGallery(document.querySelector(".filter.active").dataset.filter);
+  } catch (error) {
+    console.error("Gagal memuat desain dari admin; koleksi bawaan tetap ditampilkan:", error);
+  }
+}
+
+async function recordDailyVisitor() {
+  const supabaseClient = window.createPortfolioSupabaseClient?.();
+  if (!supabaseClient) return;
+  try {
+    let visitorId = localStorage.getItem("portfolio-visitor-id");
+    if (!visitorId) {
+      visitorId = crypto.randomUUID();
+      localStorage.setItem("portfolio-visitor-id", visitorId);
+    }
+    const { error } = await supabaseClient.from("daily_visitors").insert({
+      visitor_id: visitorId,
+      visited_on: new Date().toISOString().slice(0, 10)
+    });
+    if (error && error.code !== "23505") throw error;
+  } catch (error) {
+    console.error("Gagal mencatat statistik pengunjung:", error);
+  }
+}
+
+loadManagedDesigns();
+recordDailyVisitor();

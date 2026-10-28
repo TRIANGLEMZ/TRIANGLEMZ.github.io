@@ -1,68 +1,5 @@
-const videos = [
-  {
-    file: "video/SHOT VIDEOS A.mp4",
-    title: "Shot Videos A",
-    description: "A collection of moving images with sharp composition and a dynamic visual rhythm.",
-    category: "Showreel"
-  },
-  {
-    file: "video/SHOT VIDEOS B.mp4",
-    title: "Shot Videos B",
-    description: "An exploration of camera angles that captures moments with a strong point of view.",
-    category: "Showreel"
-  },
-  {
-    file: "video/PERSONAL PROJECT.mp4",
-    title: "Personal Project",
-    description: "A personal project exploring new ideas, moods, and visual languages.",
-    category: "Personal Work"
-  },
-  {
-    file: "video/ CINEMATIC CAR.mp4",
-    title: "Cinematic Car",
-    description: "A cinematic study of shape, light reflections, and the movement of a vehicle.",
-    category: "Cinematic"
-  },
-  {
-    file: "video/FILM PENDEK.mp4",
-    title: "Short Film",
-    description: "A short story shaped through atmosphere, carefully edited shots, and relatable emotion.",
-    category: "Short Film"
-  },
-  {
-    file: "video/CINEMATIC VISUALS.mp4",
-    title: "Cinematic Visuals",
-    description: "An atmospheric visual collection focused on light, color, and image detail.",
-    category: "Cinematic"
-  },
-  {
-    file: "video/CINEMATIC SHOTS.mp4",
-    title: "Cinematic Shots",
-    description: "Cinematic shots that bring spaces, movement, and moments into closer focus.",
-    category: "Cinematic"
-  }
-];
-
-const designWorks = [
-  ...Array.from({ length: 17 }, (_, index) => {
-    const flyerNumber = index + 1 + (index >= 2 ? 1 : 0);
-    return {
-    title: `Party Flyer ${flyerNumber}`,
-    image: `../hamanan 2/party flyer/party flyer${flyerNumber}.jpg`,
-    category: "Party"
-    };
-  }),
-  ...Array.from({ length: 10 }, (_, index) => ({
-    title: `Promotional Flyer ${index + 1}`,
-    image: `../hamanan 2/Promotional Flyer/Promotional Flyer${index + 1}.jpg`,
-    category: "Promotion"
-  })),
-  ...Array.from({ length: 4 }, (_, index) => ({
-    title: `Sports Flyer ${index + 1}`,
-    image: `../hamanan 2/Sports Flyer/Sports Flyer${index + 1}.jpg`,
-    category: "Sports"
-  }))
-];
+let videos = window.DEFAULT_SITE_CONTENT.videos;
+let designWorks = window.DEFAULT_SITE_CONTENT.designs;
 
 const heroVideo = document.querySelector(".hero-video");
 const heroProject = document.querySelector(".hero-project");
@@ -70,16 +7,14 @@ const heroDescription = document.querySelector(".hero-description");
 const heroPanelTitle = document.getElementById("hero-panel-title");
 const heroPanelCopy = document.getElementById("hero-panel-copy");
 const statusText = document.querySelector(".status-text");
-const carousel = document.querySelector(".carousel");
+const videoGrid = document.querySelector(".video-grid");
 const soundButton = document.querySelector(".sound-button");
 const watchButton = document.querySelector(".watch-button");
 const designGrid = document.getElementById("design-grid");
 
 let activeIndex = 0;
-let idleTimer;
-let isDragging = false;
-let dragStartX = 0;
-let dragStartScroll = 0;
+let videoPreviewObserver;
+let designImageObserver;
 
 function updateHeroPanel(item) {
   heroProject.textContent = `Featured work / ${item.title}`;
@@ -88,19 +23,77 @@ function updateHeroPanel(item) {
   heroPanelCopy.textContent = item.description;
 }
 
+function getDefaultDesignThumbnail(mediaUrl) {
+  const design = window.DEFAULT_SITE_CONTENT.designs.find((item) => {
+    try {
+      return new URL(item.image, window.location.href).href === mediaUrl;
+    } catch {
+      return false;
+    }
+  });
+  return design?.thumbnail ? new URL(design.thumbnail, window.location.href).href : "";
+}
+
+function getDefaultVideoThumbnail(mediaUrl) {
+  const video = window.DEFAULT_SITE_CONTENT.videos.find((item) => {
+    try {
+      return new URL(item.file, window.location.href).href === mediaUrl;
+    } catch {
+      return false;
+    }
+  });
+  return video?.thumbnail ? new URL(video.thumbnail, window.location.href).href : "";
+}
+
+async function openHeroFullscreen() {
+  if (!videos.length) return;
+  heroVideo.controls = true;
+  try {
+    loadHeroSource();
+    if (typeof heroVideo.requestFullscreen === "function") {
+      await heroVideo.requestFullscreen();
+    } else if (typeof heroVideo.webkitEnterFullscreen === "function") {
+      heroVideo.webkitEnterFullscreen();
+    } else {
+      heroVideo.controls = false;
+      statusText.textContent = "Full-screen playback is not supported on this device";
+      return;
+    }
+    playHero();
+  } catch (error) {
+    heroVideo.controls = false;
+    console.error("Tidak dapat membuka video layar penuh:", error);
+    statusText.textContent = "Unable to open full-screen playback";
+  }
+}
+
 function setHero(index) {
-  activeIndex = index;
   const item = videos[index];
+  if (!item) return;
+  activeIndex = index;
   heroVideo.pause();
-  heroVideo.src = encodeURI(item.file);
+  heroVideo.controls = false;
+  heroVideo.removeAttribute("src");
+  delete heroVideo.dataset.loadedSource;
   heroVideo.load();
+  heroVideo.poster = item.thumbnail || "";
+  heroVideo.dataset.videoSource = item.file;
   updateHeroPanel(item);
-  statusText.textContent = "Ready to play in 5 seconds";
-  window.clearTimeout(idleTimer);
-  idleTimer = window.setTimeout(playHero, 5000);
+  statusText.textContent = "Press Play Now to watch";
+}
+
+function loadHeroSource() {
+  const item = videos[activeIndex];
+  if (!item) return;
+  if (heroVideo.dataset.loadedSource === item.file) return;
+  heroVideo.src = new URL(item.file, window.location.href).href;
+  heroVideo.dataset.loadedSource = item.file;
+  heroVideo.load();
 }
 
 function playHero() {
+  if (!videos.length) return;
+  loadHeroSource();
   heroVideo.play().then(() => {
     statusText.textContent = "Now playing";
   }).catch(() => {
@@ -110,7 +103,6 @@ function playHero() {
 
 function pauseHero(showThumbnail = true) {
   heroVideo.pause();
-  window.clearTimeout(idleTimer);
   statusText.textContent = showThumbnail ? "Paused after scrolling" : "Paused";
 }
 
@@ -118,77 +110,88 @@ function createCard(item, index, copyIndex) {
   const card = document.createElement("article");
   card.className = "video-card";
   card.dataset.index = index;
-  card.innerHTML = `
-    <div class="card-media">
-      <video muted playsinline preload="metadata" src="${encodeURI(item.file)}"></video>
-      <span class="card-number">${String(copyIndex + 1).padStart(2, "0")}</span>
-      <button class="card-play" type="button" aria-label="Play ${item.title}">▶</button>
-    </div>
-    <div class="card-copy">
-      <h3>${item.title}</h3>
-      <p>${item.description}</p>
-    </div>`;
+  const media = document.createElement("div");
+  media.className = "card-media";
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "none";
+  video.poster = item.thumbnail || "";
+  if (!item.thumbnail) video.dataset.src = item.file;
+  const number = document.createElement("span");
+  number.className = "card-number";
+  number.textContent = String(copyIndex + 1).padStart(2, "0");
+  const play = document.createElement("button");
+  play.className = "card-play";
+  play.type = "button";
+  play.setAttribute("aria-label", `Play ${item.title}`);
+  play.textContent = "▶";
+  const fullscreen = document.createElement("button");
+  fullscreen.className = "card-fullscreen";
+  fullscreen.type = "button";
+  fullscreen.setAttribute("aria-label", `Watch ${item.title} full screen`);
+  fullscreen.textContent = "⛶";
+  media.append(video, number, play, fullscreen);
+  const copy = document.createElement("div");
+  copy.className = "card-copy";
+  const title = document.createElement("h3");
+  title.textContent = item.title;
+  const description = document.createElement("p");
+  description.textContent = item.description;
+  copy.append(title, description);
+  card.append(media, copy);
 
-  card.querySelector(".card-play").addEventListener("click", () => {
+  play.addEventListener("click", () => {
     setHero(index);
+    playHero();
     document.querySelector(".hero").scrollIntoView({ behavior: "smooth" });
+  });
+  fullscreen.addEventListener("click", () => {
+    setHero(index);
+    openHeroFullscreen();
   });
 
   return card;
 }
 
-function buildCarousel() {
-  const copies = [...videos, ...videos, ...videos];
-  copies.forEach((item, copyIndex) => {
-    carousel.appendChild(createCard(item, copyIndex % videos.length, copyIndex));
+function buildVideoGrid() {
+  videoPreviewObserver?.disconnect();
+  videoGrid.replaceChildren();
+  if (!videos.length) {
+    const emptyState = document.createElement("p");
+    emptyState.className = "empty-state";
+    emptyState.textContent = "No videos available yet.";
+    videoGrid.appendChild(emptyState);
+    return;
+  }
+  videos.forEach((item, index) => {
+    videoGrid.appendChild(createCard(item, index, index));
   });
-
-  requestAnimationFrame(() => {
-    carousel.scrollLeft = carousel.scrollWidth / 3;
-  });
-}
-
-function normalizeInfiniteScroll() {
-  const third = carousel.scrollWidth / 3;
-  if (carousel.scrollLeft < third * 0.45) carousel.scrollLeft += third;
-  if (carousel.scrollLeft > third * 1.55) carousel.scrollLeft -= third;
-}
-
-function scrollCarousel(direction) {
-  const card = carousel.querySelector(".video-card");
-  const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
-  const distance = card ? card.getBoundingClientRect().width + gap : carousel.clientWidth * 0.8;
-  carousel.scrollBy({ left: direction * distance, behavior: "smooth" });
-}
-
-function startDrag(event) {
-  isDragging = true;
-  dragStartX = event.pageX || event.touches[0].pageX;
-  dragStartScroll = carousel.scrollLeft;
-  carousel.classList.add("dragging");
-  pauseHero(true);
-}
-
-function moveDrag(event) {
-  if (!isDragging) return;
-  const pageX = event.pageX || event.touches[0].pageX;
-  carousel.scrollLeft = dragStartScroll - (pageX - dragStartX);
-  normalizeInfiniteScroll();
-}
-
-function endDrag() {
-  isDragging = false;
-  carousel.classList.remove("dragging");
+  if ("IntersectionObserver" in window) {
+    videoPreviewObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const video = entry.target;
+        video.src = new URL(video.dataset.src, window.location.href).href;
+        video.preload = "metadata";
+        video.load();
+        observer.unobserve(video);
+      });
+    }, { rootMargin: "0px" });
+    videoGrid.querySelectorAll(".video-card video[data-src]").forEach((video) => videoPreviewObserver.observe(video));
+  }
 }
 
 const designLightbox = document.getElementById("design-lightbox");
 const lightboxImage = document.getElementById("lightbox-image");
 const lightboxTitle = document.getElementById("lightbox-title");
+const lightboxDescription = document.getElementById("lightbox-description");
 
 function openDesignLightbox(work) {
-  lightboxImage.src = encodeURI(work.image);
+  lightboxImage.src = new URL(work.image, window.location.href).href;
   lightboxImage.alt = work.title;
   lightboxTitle.textContent = work.title;
+  lightboxDescription.textContent = work.description || "";
   designLightbox.classList.add("visible");
   designLightbox.setAttribute("aria-hidden", "false");
 }
@@ -199,33 +202,70 @@ function closeDesignLightbox() {
 }
 
 function buildDesignGallery() {
+  designImageObserver?.disconnect();
   const firstRow = designWorks.filter((_, index) => index % 2 === 0);
   const secondRow = designWorks.filter((_, index) => index % 2 === 1);
-  const renderCards = (works) => [...works, ...works].map((work) => {
-    const index = designWorks.indexOf(work);
-    return `
-      <article class="design-card">
-        <button class="design-link" type="button" data-index="${index}" aria-label="View ${work.title}">
-          <img src="${encodeURI(work.image)}" alt="${work.title}" draggable="false">
-          <span class="design-overlay">
-            <span class="design-tag">${work.category}</span>
-            <span class="design-count">${String(index + 1).padStart(2, "0")}</span>
-          </span>
-        </button>
-      </article>
-    `;
-  }).join("");
-
-  designGrid.innerHTML = `
-    <div class="marquee-wrap">
-      <div class="marquee-row">
-        ${renderCards(firstRow)}
-      </div>
-      <div class="marquee-row reverse" style="margin-top: 18px;">
-        ${renderCards(secondRow)}
-      </div>
-    </div>
-  `;
+  const marquee = document.createElement("div");
+  marquee.className = "marquee-wrap";
+  const renderCards = (works, row) => {
+    [...works, ...works].forEach((work) => {
+      const index = designWorks.indexOf(work);
+      const card = document.createElement("article");
+      card.className = "design-card";
+      const button = document.createElement("button");
+      button.className = "design-link";
+      button.type = "button";
+      button.dataset.index = index;
+      button.setAttribute("aria-label", `View ${work.title}`);
+      const image = document.createElement("img");
+      image.src = new URL(work.thumbnail || work.image, window.location.href).href;
+      image.alt = work.title;
+      image.loading = "lazy";
+      image.decoding = "async";
+      image.fetchPriority = "low";
+      image.addEventListener("error", () => {
+        if (image.src !== new URL(work.image, window.location.href).href) {
+          image.src = new URL(work.image, window.location.href).href;
+        }
+      }, { once: true });
+      image.draggable = false;
+      const overlay = document.createElement("span");
+      overlay.className = "design-overlay";
+      const category = document.createElement("span");
+      category.className = "design-tag";
+      category.textContent = work.category;
+      const count = document.createElement("span");
+      count.className = "design-count";
+      count.textContent = String(index + 1).padStart(2, "0");
+      overlay.append(category, count);
+      button.append(image, overlay);
+      card.appendChild(button);
+      row.appendChild(card);
+    });
+  };
+  const firstRowElement = document.createElement("div");
+  firstRowElement.className = "marquee-row";
+  renderCards(firstRow, firstRowElement);
+  const secondRowElement = document.createElement("div");
+  secondRowElement.className = "marquee-row reverse";
+  secondRowElement.style.marginTop = "18px";
+  renderCards(secondRow, secondRowElement);
+  marquee.append(firstRowElement, secondRowElement);
+  designGrid.replaceChildren(marquee);
+  if ("IntersectionObserver" in window) {
+    designImageObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.loading = "eager";
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: "300px" });
+    designGrid.querySelectorAll("img[loading='lazy']").forEach((image) => designImageObserver.observe(image));
+  } else {
+    designGrid.querySelectorAll("img[loading='lazy']").forEach((image) => {
+      image.loading = "eager";
+    });
+  }
 
   designGrid.querySelectorAll(".marquee-row").forEach((row) => {
     const animation = row.getAnimations()[0];
@@ -286,32 +326,22 @@ function buildDesignGallery() {
 }
 
 heroVideo.addEventListener("ended", () => {
-  setHero((activeIndex + 1) % videos.length);
+  if (videos.length) setHero((activeIndex + 1) % videos.length);
 });
 heroVideo.addEventListener("click", () => heroVideo.paused ? playHero() : pauseHero(false));
-watchButton.addEventListener("click", playHero);
+watchButton.addEventListener("click", openHeroFullscreen);
+document.querySelector(".fullscreen-button").addEventListener("click", openHeroFullscreen);
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement !== heroVideo) heroVideo.controls = false;
+});
+heroVideo.addEventListener("webkitendfullscreen", () => {
+  heroVideo.controls = false;
+});
 soundButton.addEventListener("click", () => {
   heroVideo.muted = !heroVideo.muted;
   soundButton.textContent = heroVideo.muted ? "🔇" : "🔊";
   soundButton.setAttribute("aria-label", heroVideo.muted ? "Turn sound on" : "Mute sound");
 });
-carousel.addEventListener("scroll", normalizeInfiniteScroll, { passive: true });
-carousel.addEventListener("mousedown", startDrag);
-carousel.addEventListener("mousemove", moveDrag);
-carousel.addEventListener("mouseup", endDrag);
-carousel.addEventListener("mouseleave", endDrag);
-carousel.addEventListener("touchstart", startDrag, { passive: true });
-carousel.addEventListener("touchmove", moveDrag, { passive: true });
-carousel.addEventListener("touchend", endDrag);
-document.querySelector(".previous").addEventListener("click", () => {
-  pauseHero(true);
-  scrollCarousel(-1);
-});
-document.querySelector(".next").addEventListener("click", () => {
-  pauseHero(true);
-  scrollCarousel(1);
-});
-
 document.querySelector(".lightbox-close").addEventListener("click", closeDesignLightbox);
 document.querySelector(".lightbox-back").addEventListener("click", () => {
   closeDesignLightbox();
@@ -337,5 +367,174 @@ document.addEventListener("keydown", (event) => {
 });
 
 setHero(0);
-buildCarousel();
+buildVideoGrid();
 buildDesignGallery();
+
+async function loadManagedContent() {
+  const supabaseClient = window.createPortfolioSupabaseClient?.();
+  if (!supabaseClient) {
+    try {
+      const localRows = await window.portfolioLocalStore.list();
+      const [managedVideos, managedImages] = await Promise.all([
+        window.portfolioLocalStore.getSetting("managed:video"),
+        window.portfolioLocalStore.getSetting("managed:image")
+      ]);
+      const localMediaUrl = (row) => {
+        if (row.blob instanceof Blob) return URL.createObjectURL(row.blob);
+        return row.media_url.startsWith("local://") ? "" : row.media_url;
+      };
+      if (managedVideos) {
+        videos = localRows.filter((row) => row.kind === "video")
+          .map((row) => ({
+            file: localMediaUrl(row),
+            thumbnail: row.thumbnail_blob instanceof Blob
+              ? URL.createObjectURL(row.thumbnail_blob)
+              : row.thumbnail_url || (row.blob instanceof Blob ? "" : getDefaultVideoThumbnail(localMediaUrl(row))),
+            title: row.title,
+            description: row.description,
+            category: row.category
+          }))
+          .filter((row) => row.file);
+        if (videos.length) {
+          setHero(0);
+        } else {
+          pauseHero(false);
+          heroVideo.removeAttribute("src");
+          heroVideo.removeAttribute("poster");
+          heroVideo.load();
+          heroProject.textContent = "No featured video";
+          heroDescription.textContent = "";
+          heroPanelTitle.textContent = "No videos available";
+          heroPanelCopy.textContent = "";
+          statusText.textContent = "Add a video from the admin dashboard";
+        }
+        buildVideoGrid();
+      }
+      if (managedImages) {
+        designWorks = localRows.filter((row) => row.kind === "image")
+          .map((row) => ({
+            image: localMediaUrl(row),
+            thumbnail: row.thumbnail_blob instanceof Blob
+              ? URL.createObjectURL(row.thumbnail_blob)
+              : row.thumbnail_url || getDefaultDesignThumbnail(row.media_url),
+            title: row.title,
+            description: row.description,
+            category: row.category
+          }))
+          .filter((row) => row.image);
+        buildDesignGallery();
+      }
+      renderSalesLinks(localRows.filter((row) => row.kind === "sale" && row.link_url));
+    } catch (error) {
+      console.error("Gagal memuat konten lokal; konten bawaan tetap ditampilkan:", error);
+    }
+    return;
+  }
+  try {
+    const [contentResult, stateResult] = await Promise.all([
+      supabaseClient.from("site_content")
+        .select("kind,title,description,category,media_url,thumbnail_url,link_url")
+        .order("sort_order", { ascending: true }),
+      supabaseClient.from("site_content_state").select("kind,managed")
+    ]);
+    if (contentResult.error) throw contentResult.error;
+    if (stateResult.error) throw stateResult.error;
+    const data = contentResult.data;
+    const managedKinds = new Set(stateResult.data.filter((item) => item.managed).map((item) => item.kind));
+
+    const managedVideos = data.filter((item) => item.kind === "video" && item.media_url)
+      .map((item) => ({
+        file: item.media_url,
+        thumbnail: item.thumbnail_url || getDefaultVideoThumbnail(item.media_url),
+        title: item.title,
+        description: item.description,
+        category: item.category
+      }));
+    const managedDesigns = data.filter((item) => item.kind === "image" && item.media_url)
+      .map((item) => ({
+        image: item.media_url,
+        thumbnail: item.thumbnail_url || getDefaultDesignThumbnail(item.media_url),
+        title: item.title,
+        description: item.description,
+        category: item.category
+      }));
+    if (managedKinds.has("video")) {
+      videos = managedVideos;
+      if (videos.length) {
+        setHero(0);
+      } else {
+        pauseHero(false);
+        heroVideo.removeAttribute("src");
+        heroVideo.removeAttribute("poster");
+        heroVideo.load();
+        heroProject.textContent = "No featured video";
+        heroDescription.textContent = "";
+        heroPanelTitle.textContent = "No videos available";
+        heroPanelCopy.textContent = "";
+        statusText.textContent = "Add a video from the admin dashboard";
+      }
+      buildVideoGrid();
+    }
+    if (managedKinds.has("image")) {
+      designWorks = managedDesigns;
+      buildDesignGallery();
+    }
+    renderSalesLinks(data.filter((item) => item.kind === "sale" && item.link_url));
+  } catch (error) {
+    console.error("Gagal memuat konten admin; konten bawaan tetap ditampilkan:", error);
+  }
+}
+
+function renderSalesLinks(items) {
+  const section = document.getElementById("penjualan");
+  const container = document.getElementById("sales-links");
+  container.replaceChildren();
+  items.forEach((item) => {
+    let url;
+    try {
+      url = new URL(item.link_url);
+    } catch {
+      console.error("Link penjualan tidak valid:", item.link_url);
+      return;
+    }
+    if (!["http:", "https:"].includes(url.protocol)) return;
+    const link = document.createElement("a");
+    link.className = "sale-link";
+    link.href = url.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const description = document.createElement("span");
+    description.textContent = item.description || item.category;
+    link.append(title, description);
+    container.appendChild(link);
+  });
+  section.hidden = items.length === 0;
+}
+
+if (window.location.protocol === "file:") {
+  document.getElementById("file-protocol-notice").hidden = false;
+}
+
+async function recordDailyVisitor() {
+  const supabaseClient = window.createPortfolioSupabaseClient?.();
+  if (!supabaseClient) return;
+  try {
+    let visitorId = localStorage.getItem("portfolio-visitor-id");
+    if (!visitorId) {
+      visitorId = crypto.randomUUID();
+      localStorage.setItem("portfolio-visitor-id", visitorId);
+    }
+    const { error } = await supabaseClient.from("daily_visitors").insert({
+      visitor_id: visitorId,
+      visited_on: new Date().toISOString().slice(0, 10)
+    });
+    if (error && error.code !== "23505") throw error;
+  } catch (error) {
+    console.error("Gagal mencatat statistik pengunjung:", error);
+  }
+}
+
+loadManagedContent();
+recordDailyVisitor();

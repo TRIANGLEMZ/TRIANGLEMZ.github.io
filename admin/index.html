@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Login | Porto Studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header">
+      <a href="../halaman%201/index.html">← Kembali ke website</a>
+      <button id="logout-button" class="button button-quiet" type="button" hidden>Keluar</button>
+    </header>
+
+    <section id="setup-notice" class="notice" hidden>
+      <p class="eyebrow">MODE PERANGKAT INI</p>
+      <h1>Perangkat ini saja</h1>
+      <p>Konten dan media disimpan hanya di browser ini dan tidak tersinkron ke pengunjung lain. Saat mencoba secara lokal, buka halaman publik dan Login melalui alamat server yang sama. Untuk menerbitkan perubahan ke semua pengunjung, hubungkan Supabase.</p>
+    </section>
+
+    <section id="login-panel" class="panel login-panel" hidden>
+      <p class="eyebrow">PORTO STUDIO</p>
+      <h1>Selamat datang.</h1>
+      <p>Masukkan kata sandi untuk melanjutkan.</p>
+      <form id="login-form">
+        <label id="login-email-field" hidden>Email<input name="email" type="email" autocomplete="username"></label>
+        <label>Kata sandi<input name="password" type="password" autocomplete="current-password" required></label>
+        <button id="login-submit" class="button" type="submit">Login</button>
+      </form>
+      <p id="login-message" class="message" role="status"></p>
+      <a id="local-activation-link" href="activate.html" hidden>Atur login pertama kali di perangkat ini</a>
+    </section>
+
+    <section id="dashboard" hidden>
+      <p class="eyebrow">PENGELOLAAN</p>
+      <h1>Kelola Porto Studio</h1>
+      <div class="stats-grid">
+        <article class="stat-card"><span>Pengunjung unik hari ini</span><strong id="today-count">—</strong></article>
+        <article class="stat-card"><span>Pengunjung harian sepanjang waktu</span><strong id="total-count">—</strong></article>
+      </div>
+
+      <section class="panel">
+        <div class="section-title">
+          <div><p class="eyebrow">KONTEN</p><h2>Kelola konten &amp; tautan</h2></div>
+          <button id="new-content-button" class="button" type="button">Tambah konten</button>
+        </div>
+        <p>Kelola video, poster, dan tautan penjualan secara terpisah. Unggah media, edit detail, atau hapus konten.</p>
+        <button id="import-defaults-button" class="button button-quiet" type="button">Impor konten bawaan website</button>
+        <p id="dashboard-message" class="message" role="status"></p>
+        <div class="content-filters" role="group" aria-label="Filter jenis konten">
+          <button class="content-filter active" type="button" data-kind-filter="all" aria-pressed="true">Semua</button>
+          <button class="content-filter" type="button" data-kind-filter="video" aria-pressed="false">Video</button>
+          <button class="content-filter" type="button" data-kind-filter="image" aria-pressed="false">Poster</button>
+          <button class="content-filter" type="button" data-kind-filter="sale" aria-pressed="false">Tautan</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Pratinjau</th><th>Jenis</th><th>Judul</th><th>Kategori</th><th>Aksi</th></tr></thead>
+            <tbody id="content-list"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="editor-panel" class="panel" hidden>
+        <h2 id="editor-title">Tambah konten</h2>
+        <form id="content-form">
+          <input name="id" type="hidden">
+          <label>Jenis konten
+            <select name="kind" required>
+              <option value="video">Video</option>
+              <option value="image">Poster</option>
+              <option value="sale">Tautan penjualan</option>
+            </select>
+          </label>
+          <label>Judul<input name="title" maxlength="160" required></label>
+          <label>Kategori<input name="category" maxlength="80" placeholder="Contoh: Showreel, Poster, Promo"></label>
+          <label>Deskripsi<textarea name="description" rows="3" maxlength="1000"></textarea></label>
+          <label id="media-field">Pilih gambar/video (opsional jika URL media sudah diisi)
+            <input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+          </label>
+          <label id="thumbnail-field">Thumbnail video (opsional)
+            <input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+            <small>Unggah gambar atau ambil frame langsung dari video di bawah.</small>
+          </label>
+          <section id="video-frame-picker" class="video-frame-picker" hidden aria-labelledby="frame-picker-title">
+            <h3 id="frame-picker-title">Pilih frame thumbnail</h3>
+            <p>Putar atau geser video ke bagian yang ingin dijadikan thumbnail, lalu ambil frame saat ini.</p>
+            <video id="frame-picker-video" controls playsinline preload="metadata"></video>
+            <button id="capture-video-frame" class="button button-quiet" type="button" disabled>Ambil frame saat ini</button>
+            <p id="frame-picker-message" class="message" role="status"></p>
+          </section>
+          <label id="media-url-field">URL media HTTP/HTTPS (opsional)<input name="media_url" type="url" placeholder="https://..."></label>
+          <label id="sale-url-field" hidden>Link penjualan<input name="link_url" type="url" placeholder="https://..." required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">Simpan</button>
+            <button id="cancel-edit-button" class="button button-quiet" type="button">Batal</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../halaman%201/supabase-config.js"></script>
+  <script src="../halaman%201/content-data.js"></script>
+  <script src="../halaman%201/local-store.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

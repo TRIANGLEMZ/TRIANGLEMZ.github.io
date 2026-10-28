@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Atur login | Porto Studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header">
+      <a href="index.html">← Kembali ke login</a>
+    </header>
+    <section class="panel login-panel">
+      <p class="eyebrow">PENYIAPAN SATU KALI</p>
+      <h1 id="activation-title">Atur login.</h1>
+      <p id="activation-description">Buat kata sandi untuk login di browser ini. Pengaturan hanya tersedia satu kali.</p>
+      <form id="activation-form">
+        <label>Kata sandi<input name="password" type="password" autocomplete="new-password" minlength="12" required></label>
+        <label>Ulangi sandi<input name="confirm_password" type="password" autocomplete="new-password" minlength="12" required></label>
+        <button id="activation-submit" class="button" type="submit">Aktifkan login</button>
+      </form>
+      <p id="activation-message" class="message" role="status"></p>
+    </section>
+  </main>
+  <script src="../halaman%201/local-store.js"></script>
+  <script src="activate.js"></script>
+</body>
+</html>
