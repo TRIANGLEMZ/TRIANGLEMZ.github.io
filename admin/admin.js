@@ -19,6 +19,122 @@ let localMode = false;
 let previewObjectUrls = [];
 let productPreviewObjectUrls = [];
 let framePickerObjectUrl = "";
+let publisherToken;
+
+async function getPublisherToken(forceRefresh = false) {
+  if (publisherToken && !forceRefresh) return publisherToken;
+  const response = await fetch("/_publisher/status", { cache: "no-store" });
+  const result = await response.json();
+  if (!response.ok || !result.enabled || !result.token) {
+    throw new Error(result.error || "Publisher lokal belum berjalan.");
+  }
+  publisherToken = result.token;
+  return publisherToken;
+}
+
+async function publisherRequest(path, body, contentType, retry = true) {
+  const token = await getPublisherToken();
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": contentType
+    },
+    body
+  });
+  const result = await response.json();
+  if (response.status === 403 && retry) {
+    publisherToken = "";
+    return publisherRequest(path, body, contentType, false);
+  }
+  if (!response.ok) throw new Error(result.error || "Gagal mengirim publikasi.");
+  return result;
+}
+
+async function uploadPublishedMedia(blob) {
+  if (!(blob instanceof Blob) || !blob.size) throw new Error("File untuk diterbitkan tidak tersedia.");
+  const result = await publisherRequest("/_publisher/media", blob, blob.type);
+  return result.url;
+}
+
+function publishedAssetUrl(value) {
+  if (!value) return "";
+  if (value.startsWith("published-media/")) return value;
+  const url = new URL(value, window.location.href);
+  const pagePrefix = "/halaman%201/";
+  if (url.origin === window.location.origin && url.pathname.startsWith(pagePrefix)) {
+    return url.pathname.slice(pagePrefix.length) + url.search + url.hash;
+  }
+  if (url.origin === window.location.origin && url.pathname.startsWith("/hamanan%20")) {
+    return url.pathname + url.search + url.hash;
+  }
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("URL media publik tidak valid.");
+  }
+  return url.href;
+}
+
+async function publishLocalSite() {
+  if (!localMode) return null;
+  const rows = await window.portfolioLocalStore.list();
+  const publishedRows = [];
+  const updatedRows = [];
+  for (const row of rows.filter((item) => item.kind !== "product")) {
+    const mediaUrl = row.kind === "sale"
+      ? ""
+      : row.blob instanceof Blob
+        ? row.published_media_url || await uploadPublishedMedia(row.blob)
+        : publishedAssetUrl(row.media_url || "");
+    const thumbnailUrl = isVideoKind(row.kind)
+      ? row.thumbnail_blob instanceof Blob
+        ? row.published_thumbnail_url || await uploadPublishedMedia(row.thumbnail_blob)
+        : publishedAssetUrl(row.thumbnail_url || "")
+      : publishedAssetUrl(row.thumbnail_url || "");
+    if ([mediaUrl, thumbnailUrl].some((url) => url.startsWith("local://"))) {
+      throw new Error("Ada media lokal yang belum tersedia untuk diterbitkan.");
+    }
+    const { blob, thumbnail_blob, ...record } = row;
+    publishedRows.push({ ...record, media_url: mediaUrl, thumbnail_url: thumbnailUrl });
+    updatedRows.push({
+      ...row,
+      published_media_url: row.blob instanceof Blob ? mediaUrl : row.published_media_url || "",
+      published_thumbnail_url: row.thumbnail_blob instanceof Blob ? thumbnailUrl : row.published_thumbnail_url || ""
+    });
+  }
+
+  const publishedProducts = [];
+  for (const product of rows.filter((item) => item.kind === "product")) {
+    const coverUrl = product.cover_blob instanceof Blob
+      ? product.published_cover_url || await uploadPublishedMedia(product.cover_blob)
+      : publishedAssetUrl(product.cover_url || "");
+    const previewUrl = product.preview_type === "video"
+      ? product.preview_blob instanceof Blob
+        ? product.published_preview_url || await uploadPublishedMedia(product.preview_blob)
+        : publishedAssetUrl(product.preview_url || "")
+      : publishedAssetUrl(product.preview_url || "");
+    if ([coverUrl, previewUrl].some((url) => url.startsWith("local://"))) {
+      throw new Error("Ada sampul atau preview produk lokal yang belum tersedia untuk diterbitkan.");
+    }
+    const { cover_blob, preview_blob, kind, ...record } = product;
+    publishedProducts.push({ ...record, cover_url: coverUrl, preview_url: previewUrl });
+    updatedRows.push({
+      ...product,
+      published_cover_url: product.cover_blob instanceof Blob ? coverUrl : product.published_cover_url || "",
+      published_preview_url: product.preview_blob instanceof Blob ? previewUrl : product.published_preview_url || ""
+    });
+  }
+
+  for (const row of updatedRows) await window.portfolioLocalStore.save(row);
+  const managed = {};
+  for (const kind of ["video", "image", "process_video", "process_image"]) {
+    managed[kind] = Boolean(await window.portfolioLocalStore.getSetting(`managed:${kind}`));
+  }
+  return publisherRequest("/_publisher/publish", JSON.stringify({
+    content: publishedRows,
+    products: publishedProducts,
+    managed
+  }), "application/json");
+}
 
 function isVideoKind(kind) {
   return kind === "video" || kind === "process_video";
@@ -70,6 +186,15 @@ async function hashLocalPasswordWithSalt(password, saltHex) {
 async function showLocalLogin() {
   localMode = true;
   setupNotice.hidden = false;
+  const publisherStatus = document.getElementById("publisher-status");
+  try {
+    await getPublisherToken(true);
+    publisherStatus.textContent = "Penerbit GitHub terhubung. Simpan perubahan untuk menerbitkan ke situs publik.";
+    publisherStatus.classList.remove("error");
+  } catch {
+    publisherStatus.textContent = "Penerbit belum terhubung. Jalankan publish-server.py pada komputer Anda, lalu gunakan http://127.0.0.1:8769/admin/.";
+    publisherStatus.classList.add("error");
+  }
   loginPanel.hidden = false;
   dashboard.hidden = true;
   const hasLocalAdmin = Boolean(await window.portfolioLocalStore.getSetting("admin"));
@@ -457,8 +582,8 @@ async function saveProduct(event) {
       showMessage(productMessage, "Video preview harus MP4, WebM, atau MOV.", true);
       return;
     }
-    if (previewFile.size > 100 * 1024 * 1024) {
-      showMessage(productMessage, "Ukuran video preview maksimal 100 MB. Gunakan link YouTube untuk file yang lebih besar.", true);
+    if (previewFile.size > 90 * 1024 * 1024) {
+      showMessage(productMessage, "Ukuran video preview maksimal 90 MB. Gunakan link YouTube untuk file yang lebih besar.", true);
       return;
     }
     if (!previewFile.size && !previewUrl) {
@@ -475,6 +600,7 @@ async function saveProduct(event) {
   button.disabled = true;
   const newUploads = [];
   let saved = false;
+  let localPublishResult;
   try {
     let coverUrl = current?.cover_url || "";
     let coverBlob = current?.cover_blob || null;
@@ -525,15 +651,24 @@ async function saveProduct(event) {
         id: productId,
         kind: "product",
         cover_blob: coverBlob,
-        preview_blob: previewBlob
+        preview_blob: previewBlob,
+        published_cover_url: cover.size ? "" : current?.published_cover_url || "",
+        published_preview_url: previewFile.size ? "" : current?.published_preview_url || ""
       });
+      saved = true;
+      try {
+        localPublishResult = await publishLocalSite();
+      } catch (publishError) {
+        showMessage(productMessage, `Aset tersimpan di browser ini, tetapi gagal diterbitkan ke GitHub: ${publishError.message}`, true);
+        return;
+      }
     } else {
       const result = id
         ? await supabaseClient.from("digital_products").update(record).eq("id", id)
         : await supabaseClient.from("digital_products").insert(record);
       if (result.error) throw result.error;
+      saved = true;
     }
-    saved = true;
     let cleanupWarning = false;
     const oldMedia = [];
     if (!localMode && current?.cover_url && cover.size) oldMedia.push(current.cover_url);
@@ -557,7 +692,9 @@ async function saveProduct(event) {
     }
     showMessage(productMessage, cleanupWarning
       ? "Aset tersimpan, tetapi file lama belum berhasil dihapus dari penyimpanan."
-      : "Aset digital berhasil disimpan.", cleanupWarning);
+      : localMode
+        ? localPublishResult.message
+        : "Aset digital berhasil disimpan.", cleanupWarning);
   } catch (error) {
     console.error("Gagal menyimpan aset digital:", error);
     if (!saved) {
@@ -578,8 +715,15 @@ async function saveProduct(event) {
 async function deleteProduct(product) {
   if (!window.confirm(`Hapus aset "${product.title}"?`)) return;
   try {
+    let localPublishResult;
     if (localMode) {
       await window.portfolioLocalStore.remove(product.id);
+      try {
+        localPublishResult = await publishLocalSite();
+      } catch (publishError) {
+        showMessage(productMessage, `Aset dihapus dari browser ini, tetapi gagal diterbitkan ke GitHub: ${publishError.message}`, true);
+        return;
+      }
     } else {
       const { error } = await supabaseClient.from("digital_products").delete().eq("id", product.id);
       if (error) throw error;
@@ -612,7 +756,9 @@ async function deleteProduct(product) {
       showMessage(productMessage, `Aset dihapus, tetapi daftar belum dapat diperbarui: ${refreshError.message}`, true);
       return;
     }
-    showMessage(productMessage, "Aset digital berhasil dihapus.");
+    showMessage(productMessage, localMode
+      ? localPublishResult.message
+      : "Aset digital berhasil dihapus.");
   } catch (error) {
     console.error("Gagal menghapus aset digital:", error);
     showMessage(productMessage, `Gagal menghapus aset: ${error.message}`, true);
@@ -782,8 +928,8 @@ async function saveContent(event) {
       showMessage(dashboardMessage, "Jenis file tidak sesuai dengan jenis konten.", true);
       return;
     }
-    if (upload.size > 100 * 1024 * 1024) {
-      showMessage(dashboardMessage, "Ukuran file maksimal 100 MB.", true);
+    if (upload.size > 90 * 1024 * 1024) {
+      showMessage(dashboardMessage, "Ukuran file maksimal 90 MB agar dapat disimpan di GitHub.", true);
       return;
     }
   }
@@ -929,13 +1075,26 @@ async function saveLocalContent({ formData, id, kind, upload, thumbnailUpload, m
       link_url: kind === "sale" ? linkUrl : "",
       sort_order: current?.sort_order ?? contentRows.length,
       blob: kind === "sale" ? null : upload.size ? upload : current?.blob || null,
-      thumbnail_blob: isVideoKind(kind) ? thumbnailUpload.size ? thumbnailUpload : current?.thumbnail_blob || null : null
+      thumbnail_blob: isVideoKind(kind) ? thumbnailUpload.size ? thumbnailUpload : current?.thumbnail_blob || null : null,
+      published_media_url: upload.size || (current && kind !== current.kind)
+        ? ""
+        : current?.published_media_url || "",
+      published_thumbnail_url: thumbnailUpload.size || (current && kind !== current.kind)
+        ? ""
+        : current?.published_thumbnail_url || ""
     };
     await window.portfolioLocalStore.save(record);
     if (kind !== "sale") await window.portfolioLocalStore.setSetting(`managed:${kind}`, true);
+    let publishResult;
+    try {
+      publishResult = await publishLocalSite();
+    } catch (publishError) {
+      showMessage(dashboardMessage, `Konten tersimpan di browser ini, tetapi gagal diterbitkan ke GitHub: ${publishError.message}`, true);
+      return;
+    }
     resetEditor();
     await loadContent();
-    showMessage(dashboardMessage, "Konten tersimpan di browser ini saja.");
+    showMessage(dashboardMessage, publishResult.message);
   } catch (error) {
     console.error("Gagal menyimpan konten lokal:", error);
     showMessage(dashboardMessage, `Gagal menyimpan konten: ${error.message}`, true);
@@ -966,8 +1125,9 @@ async function deleteContent(row) {
     if (localMode) {
       await window.portfolioLocalStore.remove(row.id);
       if (row.kind !== "sale") await window.portfolioLocalStore.setSetting(`managed:${row.kind}`, true);
+      const publishResult = await publishLocalSite();
       await loadContent();
-      showMessage(dashboardMessage, "Konten lokal berhasil dihapus dari browser ini.");
+      showMessage(dashboardMessage, publishResult.message);
       return;
     }
     const { error } = await supabaseClient.from("site_content").delete().eq("id", row.id);
@@ -1039,8 +1199,9 @@ async function importDefaults() {
       }
       await window.portfolioLocalStore.setSetting("managed:video", true);
       await window.portfolioLocalStore.setSetting("managed:image", true);
+      const publishResult = await publishLocalSite();
       await loadContent();
-      showMessage(dashboardMessage, "Konten bawaan tersedia di browser ini saja.");
+      showMessage(dashboardMessage, publishResult.message);
       return;
     }
     const { error } = await supabaseClient.from("site_content").upsert(defaults, {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Login | Porto Studio</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <main class="admin-shell">
@@ -15,9 +15,10 @@
     </header>
 
     <section id="setup-notice" class="notice" hidden>
-      <p class="eyebrow">MODE PERANGKAT INI</p>
-      <h1>Perangkat ini saja</h1>
-      <p>Konten dan media disimpan hanya di browser ini dan tidak tersinkron ke pengunjung lain. Saat mencoba secara lokal, buka halaman publik dan Login melalui alamat server yang sama. Untuk menerbitkan perubahan ke semua pengunjung, hubungkan Supabase.</p>
+      <p class="eyebrow">PENERBIT GITHUB LOKAL</p>
+      <h1>Kelola situs dari komputer ini</h1>
+      <p>Admin lokal akan mengirim perubahan konten dan media ke branch main menggunakan Git di komputer ini. Setelah GitHub Pages selesai deployment, hasilnya tampil untuk semua pengunjung.</p>
+      <p id="publisher-status" class="message" role="status">Memeriksa koneksi publisher lokal…</p>
     </section>
 
     <section id="login-panel" class="panel login-panel" hidden>
@@ -141,7 +142,7 @@
               <option value="none">Tanpa video preview</option>
             </select>
           </label>
-          <label id="product-preview-file-field">Video preview<input name="preview_file" type="file" accept="video/mp4,video/webm,video/quicktime"><small>Video maksimal 100 MB. Gunakan YouTube untuk file yang lebih besar.</small></label>
+          <label id="product-preview-file-field">Video preview<input name="preview_file" type="file" accept="video/mp4,video/webm,video/quicktime"><small>Video maksimal 90 MB. Gunakan YouTube untuk file yang lebih besar.</small></label>
           <label id="product-preview-youtube-field" hidden>Link video YouTube<input name="preview_youtube_url" type="url" placeholder="https://youtube.com/watch?v=..."></label>
           <label>Link pembayaran / pembelian<input name="checkout_url" type="url" placeholder="https://..." required></label>
           <div class="form-actions">
@@ -157,6 +158,6 @@
   <script src="../halaman%201/supabase-config.js"></script>
   <script src="../halaman%201/content-data.js"></script>
   <script src="../halaman%201/local-store.js"></script>
-  <script src="admin.js?v=2"></script>
+  <script src="admin.js?v=3"></script>
 </body>
 </html>

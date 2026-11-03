@@ -445,28 +445,52 @@ setHero(0);
 buildVideoGrid();
 buildDesignGallery();
 
+async function readPublishedManifest() {
+  const response = await fetch(`published-content.json?v=${Date.now()}`, { cache: "no-store" });
+  if (response.status === 404) return { content: [], products: [], managed: {} };
+  if (!response.ok) throw new Error(`Gagal membaca konten GitHub (${response.status}).`);
+  const manifest = await response.json();
+  if (!manifest || !Array.isArray(manifest.content) || !Array.isArray(manifest.products)) {
+    throw new Error("Format konten GitHub tidak valid.");
+  }
+  return manifest;
+}
+
 async function loadManagedContent() {
   const supabaseClient = window.createPortfolioSupabaseClient?.();
   if (!supabaseClient) {
     try {
       const localRows = await window.portfolioLocalStore.list();
-      const [managedVideos, managedImages, managedProcessVideos, managedProcessImages] = await Promise.all([
+      const [localManagedVideos, localManagedImages, localManagedProcessVideos, localManagedProcessImages, manifest] = await Promise.all([
         window.portfolioLocalStore.getSetting("managed:video"),
         window.portfolioLocalStore.getSetting("managed:image"),
         window.portfolioLocalStore.getSetting("managed:process_video"),
-        window.portfolioLocalStore.getSetting("managed:process_image")
+        window.portfolioLocalStore.getSetting("managed:process_image"),
+        readPublishedManifest()
       ]);
+      const isLocalOrigin = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+      const managedFor = (kind, localFlag) => isLocalOrigin && localFlag !== undefined
+        ? Boolean(localFlag)
+        : Boolean(manifest.managed?.[kind]);
+      const rowsFor = (kind, localFlag) => isLocalOrigin && localFlag !== undefined
+        ? localRows.filter((row) => row.kind === kind)
+        : manifest.content.filter((row) => row.kind === kind);
       const localMediaUrl = (row) => {
         if (row.blob instanceof Blob) return URL.createObjectURL(row.blob);
-        return row.media_url.startsWith("local://") ? "" : row.media_url;
+        const url = row.published_media_url || row.media_url || "";
+        return url.startsWith("local://") ? "" : url;
       };
+      const managedVideos = managedFor("video", localManagedVideos);
+      const managedImages = managedFor("image", localManagedImages);
+      const managedProcessVideos = managedFor("process_video", localManagedProcessVideos);
+      const managedProcessImages = managedFor("process_image", localManagedProcessImages);
       if (managedVideos) {
-        videos = localRows.filter((row) => row.kind === "video")
+        videos = rowsFor("video", localManagedVideos)
           .map((row) => ({
             file: localMediaUrl(row),
             thumbnail: row.thumbnail_blob instanceof Blob
               ? URL.createObjectURL(row.thumbnail_blob)
-              : row.thumbnail_url || (row.blob instanceof Blob ? "" : getDefaultVideoThumbnail(localMediaUrl(row))),
+              : row.published_thumbnail_url || row.thumbnail_url || (row.blob instanceof Blob ? "" : getDefaultVideoThumbnail(localMediaUrl(row))),
             title: row.title,
             description: row.description,
             category: row.category
@@ -488,12 +512,12 @@ async function loadManagedContent() {
         buildVideoGrid();
       }
       if (managedImages) {
-        designWorks = localRows.filter((row) => row.kind === "image")
+        designWorks = rowsFor("image", localManagedImages)
           .map((row) => ({
             image: localMediaUrl(row),
             thumbnail: row.thumbnail_blob instanceof Blob
               ? URL.createObjectURL(row.thumbnail_blob)
-              : row.thumbnail_url || getDefaultDesignThumbnail(row.media_url),
+              : row.published_thumbnail_url || row.thumbnail_url || getDefaultDesignThumbnail(row.published_media_url || row.media_url),
             title: row.title,
             description: row.description,
             category: row.category
@@ -502,14 +526,21 @@ async function loadManagedContent() {
         buildDesignGallery();
       }
       if (managedProcessVideos || managedProcessImages) {
-        creativeWorks = localRows
-          .filter((row) => row.kind === "process_video" ? managedProcessVideos : row.kind === "process_image" && managedProcessImages)
+        const processRows = isLocalOrigin
+          && (localManagedProcessVideos !== undefined || localManagedProcessImages !== undefined)
+          ? localRows.filter((row) =>
+            row.kind === "process_video" ? managedProcessVideos
+              : row.kind === "process_image" && managedProcessImages)
+          : manifest.content.filter((row) =>
+            row.kind === "process_video" ? managedProcessVideos
+              : row.kind === "process_image" && managedProcessImages);
+        creativeWorks = processRows
           .map((row) => ({
             kind: row.kind,
             media: localMediaUrl(row),
             thumbnail: row.thumbnail_blob instanceof Blob
               ? URL.createObjectURL(row.thumbnail_blob)
-              : row.thumbnail_url || "",
+              : row.published_thumbnail_url || row.thumbnail_url || "",
             title: row.title,
             description: row.description,
             category: row.category
@@ -517,7 +548,10 @@ async function loadManagedContent() {
           .filter((row) => row.media);
         buildCreativeGallery();
       }
-      renderSalesLinks(localRows.filter((row) => row.kind === "sale" && row.link_url));
+      const saleRows = isLocalOrigin
+        ? localRows.filter((row) => row.kind === "sale")
+        : manifest.content.filter((row) => row.kind === "sale");
+      renderSalesLinks(saleRows.filter((row) => row.link_url));
     } catch (error) {
       console.error("Gagal memuat konten lokal; konten bawaan tetap ditampilkan:", error);
     }
@@ -738,10 +772,20 @@ function renderDigitalProducts(products) {
 async function loadDigitalProducts(supabaseClient) {
   if (!supabaseClient) {
     const rows = await window.portfolioLocalStore.list();
-    const products = rows.filter((row) => row.kind === "product").map((row) => ({
+    const localProducts = rows.filter((row) => row.kind === "product");
+    const manifest = await readPublishedManifest();
+    const isLocalOrigin = ["127.0.0.1", "localhost"].includes(window.location.hostname);
+    const sourceProducts = isLocalOrigin && localProducts.length
+      ? localProducts
+      : manifest.products;
+    const products = sourceProducts.map((row) => ({
       ...row,
-      cover_url: row.cover_blob instanceof Blob ? URL.createObjectURL(row.cover_blob) : row.cover_url,
-      preview_url: row.preview_blob instanceof Blob ? URL.createObjectURL(row.preview_blob) : row.preview_url
+      cover_url: row.cover_blob instanceof Blob
+        ? URL.createObjectURL(row.cover_blob)
+        : row.published_cover_url || row.cover_url,
+      preview_url: row.preview_blob instanceof Blob
+        ? URL.createObjectURL(row.preview_blob)
+        : row.published_preview_url || row.preview_url
     }));
     renderDigitalProducts(products);
     return;
@@ -813,3 +857,46 @@ loadDigitalProducts(window.createPortfolioSupabaseClient?.()).catch((error) => {
   console.error("Gagal menyiapkan toko digital:", error);
 });
 recordDailyVisitor();
+
+
+const revealElements = document.querySelectorAll('.video-card, .service-card, .design-card, .hero-content, .hero-panel, .contact-link, .section-heading, .about, .video-grid-wrap');
+revealElements.forEach((element) => {
+  element.classList.add('reveal');
+});
+
+const revealObserver = new IntersectionObserver((entries, observer) => {
+  entries.forEach((entry) => {
+    if (!entry.isIntersecting) return;
+    entry.target.classList.add('visible');
+    observer.unobserve(entry.target);
+  });
+}, { threshold: 0.14 });
+
+revealElements.forEach((element) => revealObserver.observe(element));
+
+const motionTargets = document.querySelectorAll('.hero-panel, .video-card, .design-card, .service-card, .contact-link');
+motionTargets.forEach((target) => {
+  target.addEventListener('pointermove', (event) => {
+    const rect = target.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width;
+    const py = (event.clientY - rect.top) / rect.height;
+    const rotateY = (px - 0.5) * 16;
+    const rotateX = (0.5 - py) * 14;
+    target.style.setProperty('--rotateY', `${rotateY}deg`);
+    target.style.setProperty('--rotateX', `${rotateX}deg`);
+  });
+
+  target.addEventListener('pointerleave', () => {
+    target.style.setProperty('--rotateY', '0deg');
+    target.style.setProperty('--rotateX', '0deg');
+  });
+});
+
+const heroGlow = document.querySelector('.hero-content');
+if (heroGlow) {
+  document.addEventListener('pointermove', (event) => {
+    const x = (event.clientX / window.innerWidth) * 100;
+    const y = (event.clientY / window.innerHeight) * 100;
+    heroGlow.style.boxShadow = `inset 0 0 20px rgba(122, 212, 255, 0.06), 0 0 ${28 + (x / 12)}px rgba(122, 212, 255, ${0.12 + (y / 180)})`;
+  });
+}

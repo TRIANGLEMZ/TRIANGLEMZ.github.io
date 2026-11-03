@@ -2,19 +2,34 @@
 
 Situs ini dihosting sebagai halaman statis. Supabase menyediakan login, aturan akses server, penyimpanan media, serta statistik pengunjung tanpa menaruh kunci rahasia di website.
 
-## Menggunakan admin lokal tanpa Supabase
+## Menerbitkan perubahan langsung ke GitHub Pages tanpa Supabase
 
-Jika Supabase belum dikonfigurasi, pilih **Login** di header website. Pada penggunaan pertama, pilih **Atur login pertama kali di perangkat ini** untuk membuat kata sandi; setelah itu, halaman login hanya meminta kata sandi dan pengaturan tidak dapat diulang. Gunakan dashboard untuk menambah, mengedit, menghapus, atau mengimpor konten. Saat menambah/mengedit video, unggah thumbnail opsional untuk gambar cover kartu video. Data teks dan media disimpan di IndexedDB; konten terlihat di website hanya pada browser/origin yang sama.
+GitHub Pages tidak dapat menerima perubahan langsung dari browser. Untuk tetap memakai GitHub saja, jalankan publisher lokal di komputer yang memiliki repository ini dan akses GitHub yang sudah dikonfigurasi:
+
+1. Pastikan `git push origin main` dapat berjalan dari Terminal tanpa meminta password berulang kali. Gunakan Git Credential Manager atau autentikasi SSH yang sudah tersetel; jangan masukkan token GitHub ke halaman admin.
+2. Dari folder repository, jalankan `python3 publish-server.py`. Biarkan jendela Terminal berjalan.
+3. Buka `http://127.0.0.1:8769/admin/` di browser. Jangan membuka admin lewat `file://`, GitHub Pages, atau server lain. Publisher hanya menerima permintaan dari alamat lokal ini.
+4. Pada origin lokal pertama kali, pilih **Atur login pertama kali di perangkat ini**. Sesi admin lokal hanya berlaku pada browser/origin ini.
+5. Tambahkan atau edit konten di admin. Setiap simpan/hapus mengunggah media ke folder situs, memperbarui `halaman 1/published-content.json`, lalu membuat commit khusus dan menjalankan `git push`. Tunggu deployment GitHub Pages selesai sebelum memuat ulang situs publik.
+6. Untuk menghentikan publisher, tekan `Ctrl+C` pada jendela Terminal.
+
+Jika halaman melaporkan publisher belum terhubung, pastikan server masih berjalan dan buka URL admin lokal yang tepat. Bila push gagal karena autentikasi atau branch GitHub berubah, pesan kesalahan akan tampil; siapkan akses Git atau sinkronkan branch `main`, kemudian coba simpan lagi. Hindari menjalankan beberapa publisher bersamaan.
+
+Publisher lokal tidak mengirim kata sandi GitHub ke browser dan hanya mendengarkan pada `127.0.0.1`. Namun, file media dan konten publik disimpan di repository, sehingga jangan masukkan rahasia atau materi yang tidak ingin dipublikasikan. File yang pernah masuk commit masih dapat ada pada riwayat Git setelah dihapus dari tampilan situs.
+
+## Admin lokal tanpa publisher
+
+Jika hanya membuka website dengan server statis biasa, admin tetap dapat menyimpan perubahan di IndexedDB, tetapi perubahan tersebut tidak dipublikasikan ke pengunjung lain. Untuk sinkronisasi GitHub otomatis, gunakan `publish-server.py` sesuai langkah di atas.
 
 Untuk membuat thumbnail dari video, buka **Edit** atau **Tambah konten** pada jenis **Video**, putar atau geser pemutar ke frame yang diinginkan, lalu pilih **Ambil frame saat ini** sebelum menyimpan. Pemilih frame juga menerima file video yang baru dipilih. URL video jarak jauh harus mengizinkan pemuatan lintas situs agar frame dapat disimpan.
 
-Saat mencoba situs dari komputer, jangan membuka `index.html` dengan protokol `file://`; browser dapat memblokir pemutaran video. Jalankan server lokal dari folder proyek, misalnya `python3 -m http.server 8000`, lalu buka `http://localhost:8000/halaman%201/`. Mode konten lokal terpisah untuk setiap alamat (origin), jadi gunakan alamat yang sama untuk halaman publik dan login.
+Saat hanya meninjau file situs tanpa menerbitkan, jangan membuka `index.html` dengan protokol `file://`; browser dapat memblokir pemutaran video. Jalankan server lokal biasa dari folder proyek, misalnya `python3 -m http.server 8000`, lalu buka `http://localhost:8000/halaman%201/`. Penyimpanan browser terpisah untuk setiap alamat (origin).
 
 Jenis konten **Video proses kreatif** dan **Foto proses kreatif** muncul terpisah dari karya portofolio di bagian **Proses Kreatif** pada halaman publik. Video proses memiliki kontrol pemutaran sendiri dan foto dapat diperbesar.
 
-Menu **Jualan aset digital** di admin mengelola sampul, jenis aset (PSD, After Effects, Premiere Pro, preset, LUT, atau lainnya), harga Rupiah, deskripsi, preview video, dan link pembayaran. Video preview dapat diunggah (maksimal 100 MB) atau ditautkan dari YouTube. Di halaman publik, pembeli membuka detail produk, memasukkan nama, lalu diarahkan ke link pembayaran yang admin atur. Nama hanya divalidasi di browser dan tidak disimpan atau dikirim ke link pembayaran oleh situs ini.
+Menu **Jualan aset digital** di admin mengelola sampul, jenis aset (PSD, After Effects, Premiere Pro, preset, LUT, atau lainnya), harga Rupiah, deskripsi, preview video, dan link pembayaran. Video preview dapat diunggah (maksimal 90 MB) atau ditautkan dari YouTube. Di halaman publik, pembeli membuka detail produk, memasukkan nama, lalu diarahkan ke link pembayaran yang admin atur. Nama hanya divalidasi di browser dan tidak disimpan atau dikirim ke link pembayaran oleh situs ini.
 
-Mode ini untuk pratinjau pribadi, bukan login aman: pemeriksaan terjadi di browser, dapat dilewati oleh orang yang menguasai perangkat, dan perubahan tidak dipublikasikan ke pengunjung lain. Jangan mengandalkannya untuk melindungi konten website publik. Untuk pengelolaan bersama/publik, gunakan konfigurasi Supabase di bawah.
+Login perangkat lokal bukan autentikasi server. Jaga komputer dan akun sistem Anda, dan jangan mengekspos port publisher ke jaringan.
 
 ## Konfigurasi satu kali
 
