@@ -10,7 +10,7 @@ GitHub Pages tidak dapat menerima perubahan langsung dari browser. Untuk tetap m
 2. Dari folder repository, jalankan `python3 publish-server.py`. Biarkan jendela Terminal berjalan.
 3. Buka `http://127.0.0.1:8769/admin/` di browser. Jangan membuka admin lewat `file://`, GitHub Pages, atau server lain. Publisher hanya menerima permintaan dari alamat lokal ini.
 4. Pada origin lokal pertama kali, pilih **Atur login pertama kali di perangkat ini**. Sesi admin lokal hanya berlaku pada browser/origin ini.
-5. Tambahkan atau edit konten di admin. Setiap simpan/hapus mengunggah media ke folder situs, memperbarui `halaman 1/published-content.json`, lalu membuat commit khusus dan menjalankan `git push`. Tunggu deployment GitHub Pages selesai sebelum memuat ulang situs publik.
+5. Tambahkan atau edit konten di admin. Konten yang sudah diterbitkan dimuat kembali dari `halaman 1/published-content.json`, jadi daftar admin tidak harus bergantung pada data konten di browser. Setiap simpan/hapus mengunggah media ke folder situs, memperbarui manifest, lalu membuat commit khusus dan menjalankan `git push`. Tunggu deployment GitHub Pages selesai sebelum memuat ulang situs publik.
 6. Untuk menghentikan publisher, tekan `Ctrl+C` pada jendela Terminal.
 
 Jika halaman melaporkan publisher belum terhubung, pastikan server masih berjalan dan buka URL admin lokal yang tepat. Bila push gagal karena autentikasi atau branch GitHub berubah, pesan kesalahan akan tampil; siapkan akses Git atau sinkronkan branch `main`, kemudian coba simpan lagi. Hindari menjalankan beberapa publisher bersamaan.
@@ -19,7 +19,7 @@ Publisher lokal tidak mengirim kata sandi GitHub ke browser dan hanya mendengark
 
 ## Admin lokal tanpa publisher
 
-Jika hanya membuka website dengan server statis biasa, admin tetap dapat menyimpan perubahan di IndexedDB, tetapi perubahan tersebut tidak dipublikasikan ke pengunjung lain. Untuk sinkronisasi GitHub otomatis, gunakan `publish-server.py` sesuai langkah di atas.
+Admin yang dibuka melalui server statis biasa tidak dapat menerbitkan ke GitHub. Simpan, hapus, dan impor konten hanya tersedia melalui publisher di `http://127.0.0.1:8769/admin/`; perubahan tidak disimpan sebagai publikasi GitHub dari port lain.
 
 Untuk membuat thumbnail dari video, buka **Edit** atau **Tambah konten** pada jenis **Video**, putar atau geser pemutar ke frame yang diinginkan, lalu pilih **Ambil frame saat ini** sebelum menyimpan. Pemilih frame juga menerima file video yang baru dipilih. URL video jarak jauh harus mengizinkan pemuatan lintas situs agar frame dapat disimpan.
 

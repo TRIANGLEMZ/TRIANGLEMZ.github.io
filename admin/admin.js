@@ -63,6 +63,31 @@ async function publisherRequest(path, body, contentType, retry = true) {
   return result;
 }
 
+async function loadPublishedManifest() {
+  const response = await fetch(`../halaman%201/published-content.json?v=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Gagal membaca konten GitHub (${response.status}).`);
+  const manifest = await response.json();
+  if (!manifest || !Array.isArray(manifest.content) || !Array.isArray(manifest.products)
+    || !manifest.managed || typeof manifest.managed !== "object") {
+    throw new Error("Format konten GitHub tidak valid.");
+  }
+  return manifest;
+}
+
+async function restoreLocalStoreFromManifest() {
+  const manifest = await loadPublishedManifest();
+  for (const row of manifest.content) {
+    await window.portfolioLocalStore.save({ ...row, blob: null, thumbnail_blob: null });
+  }
+  for (const product of manifest.products) {
+    await window.portfolioLocalStore.save({ ...product, kind: "product", cover_blob: null, preview_blob: null });
+  }
+  for (const kind of ["video", "image", "process_video", "process_image"]) {
+    await window.portfolioLocalStore.setSetting(`managed:${kind}`, Boolean(manifest.managed[kind]));
+  }
+  return window.portfolioLocalStore.list();
+}
+
 async function uploadPublishedMedia(blob) {
   if (!(blob instanceof Blob) || !blob.size) throw new Error("File untuk diterbitkan tidak tersedia.");
   const result = await publisherRequest("/_publisher/media", blob, blob.type);
@@ -234,7 +259,12 @@ async function enterLocalDashboard() {
   loginPanel.hidden = true;
   dashboard.hidden = false;
   document.getElementById("logout-button").hidden = false;
-  await Promise.all([loadContent(), loadLocalStatistics()]);
+  try {
+    await Promise.all([loadContent(), loadLocalStatistics()]);
+  } catch (error) {
+    console.error("Gagal memuat konten dari GitHub:", error);
+    showMessage(dashboardMessage, `Gagal memuat konten GitHub: ${error.message}`, true);
+  }
 }
 
 async function submitLocalLogin(formData) {
@@ -275,6 +305,7 @@ async function verifyAdmin() {
 async function loadContent() {
   if (localMode) {
     contentRows = await window.portfolioLocalStore.list();
+    if (!contentRows.length) contentRows = await restoreLocalStoreFromManifest();
     contentRows.sort((left, right) => left.sort_order - right.sort_order);
     renderContentList();
     productRows = contentRows.filter((row) => row.kind === "product");
@@ -657,6 +688,7 @@ async function saveProduct(event) {
     };
 
     if (localMode) {
+      await getPublisherToken(true);
       const productId = id || crypto.randomUUID();
       await window.portfolioLocalStore.save({
         ...record,
@@ -729,6 +761,7 @@ async function deleteProduct(product) {
   try {
     let localPublishResult;
     if (localMode) {
+      await getPublisherToken(true);
       await window.portfolioLocalStore.remove(product.id);
       try {
         localPublishResult = await publishLocalSite();
@@ -1073,6 +1106,7 @@ async function saveLocalContent({ formData, id, kind, upload, thumbnailUpload, m
   const saveButton = contentForm.querySelector('[type="submit"]');
   saveButton.disabled = true;
   try {
+    await getPublisherToken(true);
     const recordId = id || crypto.randomUUID();
     const record = {
       id: recordId,
@@ -1135,6 +1169,7 @@ async function deleteContent(row) {
   if (!window.confirm(`Hapus "${row.title}"?`)) return;
   try {
     if (localMode) {
+      await getPublisherToken(true);
       await window.portfolioLocalStore.remove(row.id);
       if (row.kind !== "sale") await window.portfolioLocalStore.setSetting(`managed:${row.kind}`, true);
       const publishResult = await publishLocalSite();
@@ -1202,6 +1237,7 @@ async function importDefaults() {
   ];
   try {
     if (localMode) {
+      await getPublisherToken(true);
       const existingIds = new Set(contentRows.map((row) => row.id));
       for (const item of defaults) {
         const id = item.content_key;
