@@ -21,10 +21,22 @@ let productPreviewObjectUrls = [];
 let framePickerObjectUrl = "";
 let publisherToken;
 
+async function readPublisherResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error("Publisher lokal tidak terhubung. Jalankan `python3 publish-server.py`, lalu buka admin melalui http://127.0.0.1:8769/admin/ (bukan GitHub Pages atau port server lain).");
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error("Respons publisher lokal tidak valid. Muat ulang admin dari http://127.0.0.1:8769/admin/.");
+  }
+}
+
 async function getPublisherToken(forceRefresh = false) {
   if (publisherToken && !forceRefresh) return publisherToken;
   const response = await fetch("/_publisher/status", { cache: "no-store" });
-  const result = await response.json();
+  const result = await readPublisherResponse(response);
   if (!response.ok || !result.enabled || !result.token) {
     throw new Error(result.error || "Publisher lokal belum berjalan.");
   }
@@ -42,7 +54,7 @@ async function publisherRequest(path, body, contentType, retry = true) {
     },
     body
   });
-  const result = await response.json();
+  const result = await readPublisherResponse(response);
   if (response.status === 403 && retry) {
     publisherToken = "";
     return publisherRequest(path, body, contentType, false);
